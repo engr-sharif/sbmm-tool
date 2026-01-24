@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SBMM ABP Soil Sampling - Combined 2025 + EA Data</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; }
+        #container { display: flex; height: 100vh; }
+        #map { flex: 1; position: relative; }
+        #sidebar { 
+            width: 440px; 
+            background: #f5f5f5; 
+            display: flex;
+            flex-direction: column;
+            border-left: 2px solid #1F4E79;
+            overflow: hidden;
+        }
+        .header {
+            background: #1F4E79;
+            color: white;
+            padding: 10px 15px;
+        }
+        .header h2 { margin: 0; font-size: 14px; }
+        .header p { margin: 2px 0 0 0; font-size: 10px; opacity: 0.9; }
+        
+        .cleanup-levels {
+            background: #2d2d2d;
+            color: #00ff00;
+            padding: 8px 15px;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+        }
+        .cleanup-levels .title { color: #aaa; font-size: 9px; margin-bottom: 3px; }
+        
+        .planning-tool {
+            background: #333;
+            color: white;
+            padding: 10px 15px;
+            border-bottom: 3px solid #00ff00;
+        }
+        .planning-tool h3 { color: #00ff00; font-size: 12px; margin-bottom: 8px; }
+        
+        .mode-selector { display: flex; gap: 6px; margin-bottom: 8px; }
+        .mode-btn {
+            flex: 1; padding: 6px 8px; border: 2px solid #555; background: #333;
+            color: #aaa; font-size: 10px; font-weight: bold; cursor: pointer; border-radius: 4px;
+        }
+        .mode-btn:hover { border-color: #888; color: #fff; }
+        .mode-btn.active-view { border-color: #888; color: #fff; background: #444; }
+        .mode-btn.active-proposed { border-color: #00bfff; color: #00bfff; background: #1a2a3a; }
+        .mode-btn.active-stepout { border-color: #ff6b00; color: #ff6b00; background: #3a2a1a; }
+        
+        .coord-display {
+            background: #1a1a1a; padding: 6px 10px; border-radius: 4px;
+            margin-bottom: 8px; font-family: 'Courier New', monospace;
+        }
+        .coord-display .label { color: #888; font-size: 9px; }
+        .coord-display .coords { color: #00ff00; font-size: 12px; font-weight: bold; }
+        
+        .planning-actions { display: flex; gap: 5px; flex-wrap: wrap; }
+        .action-btn {
+            padding: 5px 8px; border: 1px solid #555; background: #333;
+            color: #ccc; font-size: 9px; cursor: pointer; border-radius: 3px;
+        }
+        .action-btn:hover { background: #444; color: #fff; }
+        .action-btn.danger:hover { background: #aa3333; }
+        .action-btn.success:hover { background: #33aa33; }
+        
+        .planned-points {
+            background: #222; padding: 8px 15px; max-height: 120px;
+            overflow-y: auto; border-bottom: 1px solid #444;
+        }
+        .planned-points h4 { color: #aaa; font-size: 10px; margin-bottom: 6px; }
+        .planned-point {
+            display: flex; align-items: center; padding: 4px 6px; margin: 2px 0;
+            background: #333; border-radius: 3px; font-size: 9px; border-left: 3px solid;
+        }
+        .planned-point.proposed { border-color: #00bfff; color: #00bfff; }
+        .planned-point.stepout { border-color: #ff6b00; color: #ff6b00; }
+        .planned-point .name { width: 70px; font-weight: bold; }
+        .planned-point .coords { flex: 1; color: #888; font-family: monospace; font-size: 8px; }
+        .planned-point .delete-btn {
+            background: none; border: none; color: #aa3333;
+            cursor: pointer; font-size: 12px; padding: 0 4px;
+        }
+        .no-points { color: #666; font-style: italic; font-size: 9px; text-align: center; padding: 8px; }
+        
+        .section { padding: 6px 15px; border-bottom: 1px solid #ddd; }
+        .section h3 { font-size: 10px; color: #1F4E79; margin-bottom: 4px; }
+        
+        .legend { background: white; }
+        .legend-row { display: flex; gap: 15px; }
+        .legend-col { flex: 1; }
+        .legend-title { font-weight: bold; font-size: 8px; color: #666; margin-bottom: 2px; }
+        .legend-item { display: flex; align-items: center; margin: 2px 0; font-size: 9px; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; border: 1px solid #333; }
+        .legend-triangle { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid; margin-right: 5px; }
+        .legend-square { width: 10px; height: 10px; margin-right: 5px; border: 1px solid #333; }
+        .legend-diamond { width: 8px; height: 8px; margin-right: 5px; border: 2px solid; transform: rotate(45deg); }
+        
+        .layer-toggle { background: #fff; font-size: 9px; }
+        .layer-toggle label { display: flex; align-items: center; margin: 2px 0; cursor: pointer; }
+        .layer-toggle input { margin-right: 5px; }
+        .layer-group { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px dashed #ddd; }
+        .layer-group:last-child { border-bottom: none; }
+        .layer-group-title { font-weight: bold; font-size: 9px; color: #1F4E79; margin-bottom: 2px; }
+        
+        .sample-list { flex: 1; overflow-y: auto; padding: 6px 15px; }
+        .sample-list h3 { font-size: 10px; color: #1F4E79; margin-bottom: 4px; }
+        
+        .tabs { display: flex; border-bottom: 2px solid #1F4E79; }
+        .tab {
+            flex: 1; padding: 6px; text-align: center; font-size: 10px; font-weight: bold;
+            cursor: pointer; background: #e0e0e0; border: none;
+        }
+        .tab.active { background: #1F4E79; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .sample-item {
+            display: flex; align-items: center; padding: 3px 5px; margin: 2px 0;
+            background: white; border-radius: 3px; border-left: 3px solid;
+            font-size: 8px; cursor: pointer;
+        }
+        .sample-item:hover { background: #e0e0e0; }
+        .sample-item .name { width: 65px; font-weight: bold; }
+        .sample-item .hg { width: 50px; }
+        .sample-item .as { width: 42px; }
+        .sample-item .sb { width: 42px; color: #666; }
+        .sample-item .flag { color: #d63e2a; font-weight: bold; }
+
+        #map.planning-mode { cursor: crosshair !important; }
+        #map.measure-mode { cursor: crosshair !important; }
+        
+        .analysis-tools {
+            background: #1a2a3a;
+            padding: 8px 15px;
+            border-bottom: 2px solid #0af;
+        }
+        .analysis-tools h4 { color: #0af; font-size: 11px; margin-bottom: 8px; }
+        .tool-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+        .tool-row label { color: #aaa; font-size: 9px; min-width: 55px; }
+        .tool-row select {
+            flex: 1; padding: 4px 6px; border: 1px solid #555;
+            background: #2a2a2a; color: #fff; font-size: 9px; border-radius: 3px;
+        }
+        .tool-btn {
+            padding: 5px 10px; border: 2px solid #555; background: #2a2a2a;
+            color: #aaa; font-size: 9px; cursor: pointer; border-radius: 4px; flex: 1;
+        }
+        .tool-btn:hover { border-color: #888; color: #fff; }
+        .tool-btn.active { border-color: #ffff00; color: #ffff00; background: #3a3a1a; }
+        .tool-btn.active-gap { border-color: #ff00ff; color: #ff00ff; background: #3a1a3a; }
+        .tool-btn.active-hotzone { border-color: #ff6600; color: #ff6600; background: #3a2a1a; }
+        .grid-btn {
+            width: 28px; height: 24px; border: 1px solid #555; background: #2a2a2a;
+            color: #0af; font-size: 14px; font-weight: bold; cursor: pointer; border-radius: 3px;
+        }
+        .grid-btn:hover { background: #3a3a3a; color: #fff; }
+        .grid-size {
+            min-width: 50px; text-align: center; color: #0af; font-weight: bold;
+            font-family: 'Courier New', monospace; font-size: 11px;
+        }
+        .map-watermark {
+            position: absolute;
+            bottom: 45px;
+            left: 10px;
+            z-index: 1000;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            font-family: Arial, sans-serif;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8), -1px -1px 2px rgba(0,0,0,0.5);
+            pointer-events: none;
+            opacity: 0.85;
+        }
+        .measure-result {
+            background: #111; padding: 6px 10px; border-radius: 4px;
+            font-family: 'Courier New', monospace; color: #ffff00; font-size: 11px;
+            text-align: center; margin-top: 6px; display: none;
+        }
+        .measure-result.visible { display: block; }
+        .gap-legend {
+            display: none; margin-top: 6px; padding: 6px;
+            background: #111; border-radius: 4px; font-size: 8px;
+        }
+        .gap-legend.visible { display: block; }
+        .gap-legend-title { color: #ff00ff; font-weight: bold; margin-bottom: 4px; }
+        .gap-legend-items { display: flex; gap: 10px; }
+        .gap-legend-item { display: flex; align-items: center; gap: 4px; color: #aaa; }
+        .gap-box { width: 14px; height: 14px; border: 1px solid #444; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="map">
+            <div class="map-watermark">Mo Sharif - Jacobs 2026</div>
+        </div>
+        <div id="sidebar">
+            <div class="header">
+                <h2>SBMM ABP Soil Sampling - Combined Analysis</h2>
+                <p>2025 Jacobs Data + EA Historical Data | REVISED CLEANUP LEVELS</p>
+            </div>
+            
+            <div class="cleanup-levels">
+                <div class="title">REVISED CLEANUP LEVELS (mg/kg)</div>
+                Hg: 58 | As: 6.1 | Sb: 7.5 | Tl: 0.4
+            </div>
+            
+            <div class="planning-tool">
+                <h3>📍 SAMPLE PLANNING</h3>
+                <div class="mode-selector">
+                    <button class="mode-btn active-view" id="btn-view">👁️ View</button>
+                    <button class="mode-btn" id="btn-proposed">🔵 Proposed</button>
+                    <button class="mode-btn" id="btn-stepout">🟠 Step-out</button>
+                </div>
+                <div class="coord-display">
+                    <div class="label">CURSOR POSITION</div>
+                    <div class="coords" id="cursorCoords">Lat: ---, Lon: ---</div>
+                </div>
+                <div class="planning-actions">
+                    <button class="action-btn" id="btn-undo">↩️ Undo</button>
+                    <button class="action-btn danger" id="btn-clear">🗑️ Clear</button>
+                    <button class="action-btn success" id="btn-export">📥 CSV</button>
+                    <button class="action-btn" id="btn-copy">📋 Copy</button>
+                </div>
+            </div>
+            
+            <div class="planned-points">
+                <h4>PLANNED POINTS (<span id="pointCount">0</span>)</h4>
+                <div id="plannedPointsList">
+                    <div class="no-points">Click map to add points (drag to reposition)</div>
+                </div>
+            </div>
+            
+            <div class="analysis-tools">
+                <h4>📊 ANALYSIS TOOLS</h4>
+                <div class="tool-row">
+                    <label>Color by:</label>
+                    <select id="colorBySelect">
+                        <option value="Mercury">Mercury (Hg)</option>
+                        <option value="Arsenic">Arsenic (As)</option>
+                        <option value="Antimony">Antimony (Sb)</option>
+                        <option value="Thallium">Thallium (Tl)</option>
+                    </select>
+                </div>
+                <div class="tool-row">
+                    <button class="tool-btn" id="btn-measure">📏 Measure</button>
+                    <button class="tool-btn" id="btn-gaps">🔍 Data Gaps</button>
+                    <button class="tool-btn" id="btn-hotzone">🔥 Hot Zones</button>
+                </div>
+                <div class="tool-row">
+                    <label>Grid size:</label>
+                    <button class="grid-btn" id="btn-grid-down">−</button>
+                    <span class="grid-size" id="gridSizeDisplay">50 ft</span>
+                    <button class="grid-btn" id="btn-grid-up">+</button>
+                    <button class="tool-btn active" id="btn-include-planned" style="margin-left:8px; flex:none; padding:5px 8px;" title="Include planned points in gap analysis">📍 On</button>
+                </div>
+                <div class="measure-result" id="measureResult">
+                    Distance: <span id="distanceValue">—</span> ft (<span id="distanceMeters">—</span> m)
+                </div>
+                <div class="gap-legend" id="gapLegend">
+                    <div class="gap-legend-title">SAMPLING DENSITY (<span id="gapGridSize">50</span>ft radius)</div>
+                    <div class="gap-legend-items">
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,0,0,0.4)"></span>No samples</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,255,0,0.3)"></span>1-2 samples</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(0,255,0,0.2)"></span>3+ samples</div>
+                    </div>
+                </div>
+                <div class="gap-legend" id="hotzoneLegend">
+                    <div class="gap-legend-title" style="color:#ff6600;">CONTAMINATION INTENSITY (<span id="hotzoneAnalyte">Hg</span>)</div>
+                    <div class="gap-legend-items">
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,0,0,0.5)"></span>HIGH (&gt;10x)</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,165,0,0.4)"></span>MED (1-10x)</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(0,200,0,0.25)"></span>LOW (&lt;1x)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section legend">
+                <h3>Legend (NEW Thresholds: Hg 58/580)</h3>
+                <div class="legend-row">
+                    <div class="legend-col">
+                        <div class="legend-title">2025 SAMPLES (●)</div>
+                        <div class="legend-item"><span class="legend-dot" style="background: #d63e2a;"></span>HIGH &gt;580</div>
+                        <div class="legend-item"><span class="legend-dot" style="background: #f0932b;"></span>MED 58-580</div>
+                        <div class="legend-item"><span class="legend-dot" style="background: #72af26;"></span>LOW ≤58</div>
+                        <div class="legend-item"><span class="legend-dot" style="background: #808080;"></span>Not Sampled</div>
+                    </div>
+                    <div class="legend-col">
+                        <div class="legend-title">EA SAMPLES (▲)</div>
+                        <div class="legend-item"><span class="legend-triangle" style="border-bottom-color: #d63e2a;"></span>HIGH &gt;580</div>
+                        <div class="legend-item"><span class="legend-triangle" style="border-bottom-color: #f0932b;"></span>MED 58-580</div>
+                        <div class="legend-item"><span class="legend-triangle" style="border-bottom-color: #72af26;"></span>LOW ≤58</div>
+                    </div>
+                    <div class="legend-col">
+                        <div class="legend-title">OTHER</div>
+                        <div class="legend-item"><span class="legend-square" style="background: #9c27b0;"></span>EA Test Pit</div>
+                        <div class="legend-item"><span class="legend-diamond" style="border-color: #00bfff;"></span>Proposed</div>
+                        <div class="legend-item"><span class="legend-diamond" style="border-color: #ff6b00;"></span>Step-out</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section layer-toggle">
+                <div class="layer-group">
+                    <div class="layer-group-title">2025 Jacobs Sampling</div>
+                    <label><input type="checkbox" id="toggle2025Sampled" checked> Sampled (32)</label>
+                    <label><input type="checkbox" id="toggle2025NotSampled" checked> Not Sampled (9)</label>
+                </div>
+                <div class="layer-group">
+                    <div class="layer-group-title">EA Historical Data</div>
+                    <label><input type="checkbox" id="toggleEASamples" checked> EA Samples (54)</label>
+                    <label><input type="checkbox" id="toggleEATestPits" checked> EA Test Pits (5)</label>
+                </div>
+                <div class="layer-group">
+                    <div class="layer-group-title">Planning</div>
+                    <label><input type="checkbox" id="togglePlanned" checked> Planned Points</label>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab active" data-tab="tab2025">2025 Samples</button>
+                <button class="tab" data-tab="tabEA">EA Samples</button>
+            </div>
+            
+            <div class="sample-list">
+                <div id="tab2025" class="tab-content active">
+                    <h3>2025 Jacobs Samples (Hg | As | Sb)</h3>
+                    <div id="sampleList2025"></div>
+                </div>
+                <div id="tabEA" class="tab-content">
+                    <h3>EA Historical Samples (Hg | As | Sb)</h3>
+                    <div id="sampleListEA"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        var samples2025 = [{"num": 1, "label": "SS1", "lat": 39.005268, "lon": -122.670858, "sampled": true, "metals": {"Aluminum": 6300.0, "Antimony": 13.0, "Arsenic": 32.0, "Barium": 160.0, "Beryllium": 0.12, "Cadmium": 0.1, "Calcium": 1000.0, "Chromium": 28.0, "Cobalt": 3.0, "Copper": 25.0, "Iron": 32000.0, "Lead": 17.0, "Magnesium": 1200.0, "Manganese": 310.0, "Mercury": 210.0, "Nickel": 13.0, "Potassium": 1400.0, "Selenium": 0.61, "Silver": 0.5, "Sodium": 1000.0, "Thallium": 0.12, "Vanadium": 33.0, "Zinc": 28.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 2, "label": "SS2", "lat": 39.005286, "lon": -122.670135, "sampled": true, "metals": {"Aluminum": 9500.0, "Antimony": 2.2, "Arsenic": 16.0, "Barium": 150.0, "Beryllium": 0.34, "Cadmium": 0.16, "Calcium": 980.0, "Chromium": 43.0, "Cobalt": 11.0, "Copper": 45.0, "Iron": 32000.0, "Lead": 17.0, "Magnesium": 2900.0, "Manganese": 1100.0, "Mercury": 270.0, "Nickel": 36.0, "Potassium": 1400.0, "Selenium": 0.73, "Silver": 0.096, "Sodium": 970.0, "Thallium": 0.12, "Vanadium": 38.0, "Zinc": 70.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 3, "label": "SS3", "lat": 39.005681, "lon": -122.670723, "sampled": true, "metals": {"Aluminum": 26000.0, "Antimony": 1.0, "Arsenic": 1.9, "Barium": 380.0, "Beryllium": 0.53, "Cadmium": 0.94, "Calcium": 6100.0, "Chromium": 110.0, "Cobalt": 12.0, "Copper": 35.0, "Iron": 35000.0, "Lead": 24.0, "Magnesium": 1200.0, "Manganese": 790.0, "Mercury": 16.0, "Nickel": 15.0, "Potassium": 1600.0, "Selenium": 0.66, "Silver": 0.52, "Sodium": 1000.0, "Thallium": 0.41, "Vanadium": 140.0, "Zinc": 60.0}, "priority": "LOW", "color": "#72af26"}, {"num": 4, "label": "SS4", "lat": 39.004826, "lon": -122.668794, "sampled": true, "metals": {"Aluminum": 14000.0, "Antimony": 4.8, "Arsenic": 13.0, "Barium": 370.0, "Beryllium": 0.28, "Cadmium": 0.64, "Calcium": 3200.0, "Chromium": 73.0, "Cobalt": 9.4, "Copper": 30.0, "Iron": 33000.0, "Lead": 28.0, "Magnesium": 1200.0, "Manganese": 440.0, "Mercury": 960.0, "Nickel": 19.0, "Potassium": 1500.0, "Selenium": 0.57, "Silver": 0.52, "Sodium": 1000.0, "Thallium": 0.29, "Vanadium": 96.0, "Zinc": 49.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 5, "label": "SS5", "lat": 39.005078, "lon": -122.669205, "sampled": true, "metals": {"Aluminum": 15000.0, "Antimony": 37.0, "Arsenic": 40.0, "Barium": 270.0, "Beryllium": 0.23, "Cadmium": 0.25, "Calcium": 1700.0, "Chromium": 51.0, "Cobalt": 6.2, "Copper": 29.0, "Iron": 29000.0, "Lead": 16.0, "Magnesium": 1800.0, "Manganese": 190.0, "Mercury": 230.0, "Nickel": 19.0, "Potassium": 1500.0, "Selenium": 0.44, "Silver": 0.49, "Sodium": 980.0, "Thallium": 0.16, "Vanadium": 57.0, "Zinc": 41.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 6, "label": "SS6", "lat": 39.005428, "lon": -122.669195, "sampled": true, "metals": {"Aluminum": 12000.0, "Antimony": 0.65, "Arsenic": 6.3, "Barium": 120.0, "Beryllium": 0.27, "Cadmium": 0.2, "Calcium": 3300.0, "Chromium": 98.0, "Cobalt": 16.0, "Copper": 34.0, "Iron": 27000.0, "Lead": 6.0, "Magnesium": 13000.0, "Manganese": 470.0, "Mercury": 1.9, "Nickel": 120.0, "Potassium": 970.0, "Selenium": 0.45, "Silver": 0.49, "Sodium": 970.0, "Thallium": 0.19, "Vanadium": 53.0, "Zinc": 70.0}, "priority": "LOW", "color": "#72af26"}, {"num": 7, "label": "SS7", "lat": 39.005667, "lon": -122.66933, "sampled": true, "metals": {"Aluminum": 13000.0, "Antimony": 3.4, "Arsenic": 6.2, "Barium": 140.0, "Beryllium": 0.29, "Cadmium": 0.27, "Calcium": 3500.0, "Chromium": 60.0, "Cobalt": 13.0, "Copper": 28.0, "Iron": 28000.0, "Lead": 6.6, "Magnesium": 11000.0, "Manganese": 830.0, "Mercury": 17.0, "Nickel": 86.0, "Potassium": 930.0, "Selenium": 0.48, "Silver": 0.58, "Sodium": 1200.0, "Thallium": 0.23, "Vanadium": 44.0, "Zinc": 56.0}, "priority": "LOW", "color": "#72af26"}, {"num": 8, "label": "SS8", "lat": 39.006076, "lon": -122.668851, "sampled": true, "metals": {"Aluminum": 1700.0, "Antimony": 0.86, "Arsenic": 0.59, "Barium": 120.0, "Beryllium": 0.54, "Cadmium": 1.1, "Calcium": 1800.0, "Chromium": 12.0, "Cobalt": 0.73, "Copper": 12.0, "Iron": 3100.0, "Lead": 18.0, "Magnesium": 1100.0, "Manganese": 150.0, "Mercury": 65.0, "Nickel": 3.6, "Potassium": 1100.0, "Selenium": 2.7, "Silver": 0.54, "Sodium": 1100.0, "Thallium": 0.091, "Vanadium": 11.0, "Zinc": 12.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 9, "label": "SS9", "lat": 39.00635, "lon": -122.669578, "sampled": true, "metals": {"Aluminum": 21000.0, "Antimony": 2.1, "Arsenic": 7.0, "Barium": 300.0, "Beryllium": 0.4, "Cadmium": 0.76, "Calcium": 3000.0, "Chromium": 110.0, "Cobalt": 13.0, "Copper": 35.0, "Iron": 33000.0, "Lead": 22.0, "Magnesium": 3600.0, "Manganese": 520.0, "Mercury": 55.0, "Nickel": 42.0, "Potassium": 1200.0, "Selenium": 0.71, "Silver": 0.51, "Sodium": 1000.0, "Thallium": 0.32, "Vanadium": 120.0, "Zinc": 63.0}, "priority": "LOW", "color": "#72af26"}, {"num": 10, "label": "SS10", "lat": 39.006838, "lon": -122.669621, "sampled": true, "metals": {"Aluminum": 14000.0, "Antimony": 1.2, "Arsenic": 5.3, "Barium": 120.0, "Beryllium": 0.31, "Cadmium": 0.37, "Calcium": 3600.0, "Chromium": 49.0, "Cobalt": 11.0, "Copper": 21.0, "Iron": 21000.0, "Lead": 5.8, "Magnesium": 7600.0, "Manganese": 500.0, "Mercury": 19.0, "Nickel": 49.0, "Potassium": 960.0, "Selenium": 0.43, "Silver": 0.48, "Sodium": 960.0, "Thallium": 0.091, "Vanadium": 41.0, "Zinc": 44.0}, "priority": "LOW", "color": "#72af26"}, {"num": 11, "label": "SS11", "lat": 39.00721, "lon": -122.669531, "sampled": true, "metals": {"Aluminum": 6900.0, "Antimony": 0.85, "Arsenic": 2.3, "Barium": 67.0, "Beryllium": 0.13, "Cadmium": 0.22, "Calcium": 4100.0, "Chromium": 32.0, "Cobalt": 9.0, "Copper": 18.0, "Iron": 12000.0, "Lead": 2.9, "Magnesium": 8600.0, "Manganese": 240.0, "Mercury": 9.1, "Nickel": 26.0, "Potassium": 990.0, "Selenium": 2.5, "Silver": 0.5, "Sodium": 990.0, "Thallium": 0.2, "Vanadium": 21.0, "Zinc": 24.0}, "priority": "LOW", "color": "#72af26"}, {"num": 12, "label": "SS12", "lat": 39.007476, "lon": -122.669684, "sampled": true, "metals": {"Aluminum": 15000.0, "Antimony": 0.2, "Arsenic": 1.5, "Barium": 250.0, "Beryllium": 0.19, "Cadmium": 0.73, "Calcium": 14000.0, "Chromium": 76.0, "Cobalt": 11.0, "Copper": 26.0, "Iron": 19000.0, "Lead": 17.0, "Magnesium": 6000.0, "Manganese": 320.0, "Mercury": 55.0, "Nickel": 32.0, "Potassium": 1000.0, "Selenium": 0.41, "Silver": 0.51, "Sodium": 1000.0, "Thallium": 0.17, "Vanadium": 78.0, "Zinc": 33.0}, "priority": "LOW", "color": "#72af26"}, {"num": 13, "label": "SS13", "lat": 39.007543, "lon": -122.668894, "sampled": true, "metals": {"Aluminum": 20000.0, "Antimony": 1.2, "Arsenic": 3.1, "Barium": 190.0, "Beryllium": 0.36, "Cadmium": 0.7, "Calcium": 1100.0, "Chromium": 80.0, "Cobalt": 6.8, "Copper": 26.0, "Iron": 37000.0, "Lead": 16.0, "Magnesium": 1100.0, "Manganese": 1100.0, "Mercury": 780.0, "Nickel": 13.0, "Potassium": 860.0, "Selenium": 0.77, "Silver": 0.54, "Sodium": 1100.0, "Thallium": 0.3, "Vanadium": 120.0, "Zinc": 35.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 14, "label": "SS14", "lat": 39.00728, "lon": -122.668997, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 15, "label": "SS15", "lat": 39.007055, "lon": -122.668757, "sampled": true, "metals": {"Aluminum": 12000.0, "Antimony": 0.24, "Arsenic": 1.2, "Barium": 320.0, "Beryllium": 0.33, "Cadmium": 1.0, "Calcium": 5600.0, "Chromium": 59.0, "Cobalt": 5.4, "Copper": 22.0, "Iron": 14000.0, "Lead": 22.0, "Magnesium": 890.0, "Manganese": 530.0, "Mercury": 170.0, "Nickel": 9.4, "Potassium": 1500.0, "Selenium": 0.49, "Silver": 0.51, "Sodium": 1000.0, "Thallium": 0.34, "Vanadium": 57.0, "Zinc": 19.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 16, "label": "SS16", "lat": 39.007146, "lon": -122.668047, "sampled": true, "metals": {"Aluminum": 14000.0, "Antimony": 0.35, "Arsenic": 1.7, "Barium": 320.0, "Beryllium": 0.36, "Cadmium": 0.64, "Calcium": 2000.0, "Chromium": 65.0, "Cobalt": 4.4, "Copper": 19.0, "Iron": 21000.0, "Lead": 26.0, "Magnesium": 900.0, "Manganese": 470.0, "Mercury": 56.0, "Nickel": 11.0, "Potassium": 890.0, "Selenium": 2.7, "Silver": 0.55, "Sodium": 1100.0, "Thallium": 0.21, "Vanadium": 83.0, "Zinc": 24.0}, "priority": "LOW", "color": "#72af26"}, {"num": 17, "label": "SS17", "lat": 39.006847, "lon": -122.668618, "sampled": true, "metals": {"Aluminum": 6300.0, "Antimony": 0.39, "Arsenic": 1.1, "Barium": 250.0, "Beryllium": 0.13, "Cadmium": 0.58, "Calcium": 1100.0, "Chromium": 23.0, "Cobalt": 2.0, "Copper": 15.0, "Iron": 10000.0, "Lead": 16.0, "Magnesium": 1100.0, "Manganese": 100.0, "Mercury": 1000.0, "Nickel": 5.5, "Potassium": 1100.0, "Selenium": 2.8, "Silver": 0.56, "Sodium": 1100.0, "Thallium": 0.27, "Vanadium": 30.0, "Zinc": 10.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 18, "label": "SS18", "lat": 39.006493, "lon": -122.668758, "sampled": true, "metals": {"Aluminum": 4700.0, "Antimony": 0.45, "Arsenic": 1.3, "Barium": 190.0, "Beryllium": 0.12, "Cadmium": 0.43, "Calcium": 1100.0, "Chromium": 19.0, "Cobalt": 1.0, "Copper": 22.0, "Iron": 6700.0, "Lead": 14.0, "Magnesium": 1100.0, "Manganese": 78.0, "Mercury": 1500.0, "Nickel": 4.6, "Potassium": 590.0, "Selenium": 0.45, "Silver": 0.11, "Sodium": 1100.0, "Thallium": 0.19, "Vanadium": 23.0, "Zinc": 10.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 19, "label": "SS19", "lat": 39.005612, "lon": -122.668144, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 20, "label": "SS20", "lat": 39.005327, "lon": -122.668416, "sampled": true, "metals": {"Aluminum": 14000.0, "Antimony": 0.53, "Arsenic": 2.1, "Barium": 290.0, "Beryllium": 0.18, "Cadmium": 0.88, "Calcium": 1300.0, "Chromium": 60.0, "Cobalt": 3.5, "Copper": 15.0, "Iron": 20000.0, "Lead": 19.0, "Magnesium": 670.0, "Manganese": 160.0, "Mercury": 280.0, "Nickel": 7.8, "Potassium": 1100.0, "Selenium": 2.8, "Silver": 0.55, "Sodium": 1100.0, "Thallium": 0.26, "Vanadium": 74.0, "Zinc": 19.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 21, "label": "SS21", "lat": 39.004762, "lon": -122.667727, "sampled": true, "metals": {"Aluminum": 16000.0, "Antimony": 4.7, "Arsenic": 11.0, "Barium": 190.0, "Beryllium": 0.4, "Cadmium": 0.49, "Calcium": 7400.0, "Chromium": 56.0, "Cobalt": 10.0, "Copper": 23.0, "Iron": 22000.0, "Lead": 13.0, "Magnesium": 6100.0, "Manganese": 420.0, "Mercury": 130.0, "Nickel": 38.0, "Potassium": 1600.0, "Selenium": 0.37, "Silver": 0.51, "Sodium": 1000.0, "Thallium": 0.19, "Vanadium": 55.0, "Zinc": 50.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 22, "label": "SS22", "lat": 39.004997, "lon": -122.667652, "sampled": true, "metals": {"Aluminum": 20000.0, "Antimony": 4.2, "Arsenic": 7.8, "Barium": 340.0, "Beryllium": 0.19, "Cadmium": 0.7, "Calcium": 2000.0, "Chromium": 67.0, "Cobalt": 3.6, "Copper": 21.0, "Iron": 27000.0, "Lead": 19.0, "Magnesium": 570.0, "Manganese": 190.0, "Mercury": 360.0, "Nickel": 6.2, "Potassium": 740.0, "Selenium": 2.7, "Silver": 0.53, "Sodium": 1100.0, "Thallium": 0.28, "Vanadium": 92.0, "Zinc": 24.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 23, "label": "SS23", "lat": 39.005229, "lon": -122.667758, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 24, "label": "SS24", "lat": 39.005414, "lon": -122.667103, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 25, "label": "SS25", "lat": 39.005364, "lon": -122.66664, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 26, "label": "SS26", "lat": 39.005175, "lon": -122.665878, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 27, "label": "SS27", "lat": 39.005487, "lon": -122.66583, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 28, "label": "SS28", "lat": 39.005789, "lon": -122.665732, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 29, "label": "SS29", "lat": 39.005967, "lon": -122.666705, "sampled": true, "metals": {"Aluminum": 2800.0, "Antimony": 0.45, "Arsenic": 0.47, "Barium": 140.0, "Beryllium": 0.097, "Cadmium": 0.22, "Calcium": 1100.0, "Chromium": 11.0, "Cobalt": 0.77, "Copper": 8.6, "Iron": 3700.0, "Lead": 14.0, "Magnesium": 1100.0, "Manganese": 19.0, "Mercury": 230.0, "Nickel": 3.8, "Potassium": 890.0, "Selenium": 2.7, "Silver": 0.55, "Sodium": 1100.0, "Thallium": 0.22, "Vanadium": 14.0, "Zinc": 7.2}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 30, "label": "SS30", "lat": 39.005968, "lon": -122.66646, "sampled": true, "metals": {"Aluminum": 7300.0, "Antimony": 0.29, "Arsenic": 0.9, "Barium": 240.0, "Beryllium": 0.13, "Cadmium": 0.37, "Calcium": 1100.0, "Chromium": 25.0, "Cobalt": 0.89, "Copper": 11.0, "Iron": 5800.0, "Lead": 12.0, "Magnesium": 330.0, "Manganese": 43.0, "Mercury": 390.0, "Nickel": 5.3, "Potassium": 840.0, "Selenium": 2.8, "Silver": 0.11, "Sodium": 1100.0, "Thallium": 0.23, "Vanadium": 25.0, "Zinc": 11.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 31, "label": "SS31", "lat": 39.006175, "lon": -122.666803, "sampled": true, "metals": {"Aluminum": 2100.0, "Antimony": 0.31, "Arsenic": 0.57, "Barium": 78.0, "Beryllium": 0.56, "Cadmium": 0.22, "Calcium": 1100.0, "Chromium": 10.0, "Cobalt": 0.37, "Copper": 7.5, "Iron": 3100.0, "Lead": 6.8, "Magnesium": 1100.0, "Manganese": 19.0, "Mercury": 230.0, "Nickel": 2.2, "Potassium": 360.0, "Selenium": 2.8, "Silver": 0.098, "Sodium": 1100.0, "Thallium": 0.22, "Vanadium": 11.0, "Zinc": 4.7}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 32, "label": "SS32", "lat": 39.006168, "lon": -122.666265, "sampled": true, "metals": {"Aluminum": 11000.0, "Antimony": 3.1, "Arsenic": 7.9, "Barium": 230.0, "Beryllium": 0.18, "Cadmium": 0.25, "Calcium": 4200.0, "Chromium": 40.0, "Cobalt": 9.6, "Copper": 15.0, "Iron": 19000.0, "Lead": 10.0, "Magnesium": 2100.0, "Manganese": 360.0, "Mercury": 220.0, "Nickel": 24.0, "Potassium": 1200.0, "Selenium": 2.5, "Silver": 0.5, "Sodium": 1000.0, "Thallium": 0.092, "Vanadium": 37.0, "Zinc": 43.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 33, "label": "SS33", "lat": 39.006377, "lon": -122.665714, "sampled": true, "metals": {"Aluminum": 26000.0, "Antimony": 0.26, "Arsenic": 2.0, "Barium": 290.0, "Beryllium": 0.45, "Cadmium": 0.87, "Calcium": 2200.0, "Chromium": 140.0, "Cobalt": 15.0, "Copper": 26.0, "Iron": 44000.0, "Lead": 19.0, "Magnesium": 1300.0, "Manganese": 620.0, "Mercury": 170.0, "Nickel": 14.0, "Potassium": 820.0, "Selenium": 0.58, "Silver": 0.51, "Sodium": 1000.0, "Thallium": 0.22, "Vanadium": 180.0, "Zinc": 49.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 34, "label": "SS34", "lat": 39.006612, "lon": -122.665525, "sampled": true, "metals": {"Aluminum": 30000.0, "Antimony": 0.19, "Arsenic": 2.8, "Barium": 270.0, "Beryllium": 0.52, "Cadmium": 1.2, "Calcium": 2700.0, "Chromium": 120.0, "Cobalt": 17.0, "Copper": 22.0, "Iron": 46000.0, "Lead": 18.0, "Magnesium": 2000.0, "Manganese": 820.0, "Mercury": 110.0, "Nickel": 18.0, "Potassium": 790.0, "Selenium": 0.61, "Silver": 0.08, "Sodium": 1000.0, "Thallium": 0.2, "Vanadium": 170.0, "Zinc": 69.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 35, "label": "SS35", "lat": 39.006936, "lon": -122.666106, "sampled": true, "metals": {"Aluminum": 3800.0, "Antimony": 8.3, "Arsenic": 7.2, "Barium": 330.0, "Beryllium": 0.076, "Cadmium": 0.35, "Calcium": 4700.0, "Chromium": 17.0, "Cobalt": 2.3, "Copper": 9.4, "Iron": 12000.0, "Lead": 27.0, "Magnesium": 630.0, "Manganese": 2700.0, "Mercury": 1200.0, "Nickel": 5.6, "Potassium": 1200.0, "Selenium": 2.9, "Silver": 0.57, "Sodium": 1100.0, "Thallium": 0.46, "Vanadium": 25.0, "Zinc": 29.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 36, "label": "SS36", "lat": 39.007419, "lon": -122.666159, "sampled": false, "metals": {"Aluminum": null, "Antimony": null, "Arsenic": null, "Barium": null, "Beryllium": null, "Cadmium": null, "Calcium": null, "Chromium": null, "Cobalt": null, "Copper": null, "Iron": null, "Lead": null, "Magnesium": null, "Manganese": null, "Mercury": null, "Nickel": null, "Potassium": null, "Selenium": null, "Silver": null, "Sodium": null, "Thallium": null, "Vanadium": null, "Zinc": null}, "priority": "NOT SAMPLED", "color": "#808080"}, {"num": 37, "label": "SS37", "lat": 39.006667, "lon": -122.66721, "sampled": true, "metals": {"Aluminum": 5400.0, "Antimony": 0.66, "Arsenic": 0.93, "Barium": 220.0, "Beryllium": 0.1, "Cadmium": 0.22, "Calcium": 1100.0, "Chromium": 17.0, "Cobalt": 2.4, "Copper": 11.0, "Iron": 8700.0, "Lead": 25.0, "Magnesium": 470.0, "Manganese": 150.0, "Mercury": 470.0, "Nickel": 5.4, "Potassium": 620.0, "Selenium": 2.8, "Silver": 0.56, "Sodium": 1100.0, "Thallium": 0.095, "Vanadium": 21.0, "Zinc": 17.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 38, "label": "SS38", "lat": 39.00694, "lon": -122.667462, "sampled": true, "metals": {"Aluminum": 6400.0, "Antimony": 3.9, "Arsenic": 3.5, "Barium": 250.0, "Beryllium": 0.067, "Cadmium": 0.43, "Calcium": 1000.0, "Chromium": 23.0, "Cobalt": 1.2, "Copper": 14.0, "Iron": 11000.0, "Lead": 12.0, "Magnesium": 1000.0, "Manganese": 67.0, "Mercury": 620.0, "Nickel": 3.7, "Potassium": 900.0, "Selenium": 2.6, "Silver": 0.52, "Sodium": 1000.0, "Thallium": 0.14, "Vanadium": 24.0, "Zinc": 12.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 39, "label": "SS39", "lat": 39.00759, "lon": -122.667635, "sampled": true, "metals": {"Aluminum": 24000.0, "Antimony": 5.3, "Arsenic": 6.0, "Barium": 400.0, "Beryllium": 0.59, "Cadmium": 0.79, "Calcium": 2600.0, "Chromium": 91.0, "Cobalt": 12.0, "Copper": 30.0, "Iron": 32000.0, "Lead": 27.0, "Magnesium": 1400.0, "Manganese": 640.0, "Mercury": 220.0, "Nickel": 19.0, "Potassium": 1400.0, "Selenium": 0.86, "Silver": 0.13, "Sodium": 1000.0, "Thallium": 0.28, "Vanadium": 130.0, "Zinc": 58.0}, "priority": "MEDIUM", "color": "#f0932b"}, {"num": 40, "label": "SS40", "lat": 39.007695, "lon": -122.667005, "sampled": true, "metals": {"Aluminum": 10000.0, "Antimony": 34.0, "Arsenic": 20.0, "Barium": 300.0, "Beryllium": 0.18, "Cadmium": 0.34, "Calcium": 1400.0, "Chromium": 45.0, "Cobalt": 4.0, "Copper": 28.0, "Iron": 28000.0, "Lead": 19.0, "Magnesium": 680.0, "Manganese": 280.0, "Mercury": 660.0, "Nickel": 9.9, "Potassium": 1200.0, "Selenium": 0.52, "Silver": 0.53, "Sodium": 1100.0, "Thallium": 0.38, "Vanadium": 48.0, "Zinc": 29.0}, "priority": "HIGH", "color": "#d63e2a"}, {"num": 41, "label": "SS41", "lat": 39.00791, "lon": -122.666428, "sampled": true, "metals": {"Aluminum": 19000.0, "Antimony": 1.1, "Arsenic": 1.5, "Barium": 180.0, "Beryllium": 0.75, "Cadmium": 0.68, "Calcium": 4600.0, "Chromium": 43.0, "Cobalt": 13.0, "Copper": 11.0, "Iron": 17000.0, "Lead": 7.9, "Magnesium": 2300.0, "Manganese": 650.0, "Mercury": 1.8, "Nickel": 22.0, "Potassium": 1100.0, "Selenium": 2.6, "Silver": 0.53, "Sodium": 1100.0, "Thallium": 0.5, "Vanadium": 40.0, "Zinc": 24.0}, "priority": "LOW", "color": "#72af26"}];
+        var eaSamples = [{"id": "ABWP01-01", "lat": 39.0077465970319, "lon": -122.667500272217, "mercury": 450, "arsenic": 9.5, "antimony": 7.9, "thallium": 0.2, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-02", "lat": 39.0075456088709, "lon": -122.669340150299, "mercury": 990, "arsenic": 45.0, "antimony": 88, "thallium": 0.19, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-03", "lat": 39.0075495799947, "lon": -122.667932476644, "mercury": 21, "arsenic": 2.7, "antimony": 0.91, "thallium": 0.18, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-04", "lat": 39.0071453680858, "lon": -122.667684592255, "mercury": 550, "arsenic": 4.1, "antimony": 3.6, "thallium": 0.18, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-05", "lat": 39.0067396027714, "lon": -122.669896404149, "mercury": 18, "arsenic": 2.1, "antimony": 0.93, "thallium": 0.17, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-06", "lat": 39.0069174799061, "lon": -122.669274695302, "mercury": 1100, "arsenic": 1.4, "antimony": 1.2, "thallium": 0.22, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-07", "lat": 39.0067803811149, "lon": -122.668870411799, "mercury": 560, "arsenic": 0.9, "antimony": 1.1, "thallium": 0.17, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-08", "lat": 39.0068286657774, "lon": -122.668532493722, "mercury": 66, "arsenic": 1.3, "antimony": 0.89, "thallium": 0.14, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-09", "lat": 39.006538404952, "lon": -122.670171560681, "mercury": 15, "arsenic": 2.2, "antimony": 0.92, "thallium": 0.3, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-10", "lat": 39.0065895547403, "lon": -122.669775496228, "mercury": 42, "arsenic": 5.2, "antimony": 11, "thallium": 0.21, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-11", "lat": 39.0064832859138, "lon": -122.669224265643, "mercury": 700, "arsenic": 1.7, "antimony": 0.92, "thallium": 0.27, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-12", "lat": 39.0066591809989, "lon": -122.668430402273, "mercury": 67, "arsenic": 0.84, "antimony": 1.4, "thallium": 0.062, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-13", "lat": 39.0061396268048, "lon": -122.670177754725, "mercury": 18, "arsenic": 1.7, "antimony": 1.1, "thallium": 0.29, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-14", "lat": 39.0062347170494, "lon": -122.669290027868, "mercury": 73, "arsenic": 2.0, "antimony": 0.93, "thallium": 0.19, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-15", "lat": 39.0062378287727, "lon": -122.669012462979, "mercury": 180, "arsenic": 1.2, "antimony": 1, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-16", "lat": 39.0062118225611, "lon": -122.668588508445, "mercury": 79, "arsenic": 0.7, "antimony": 1.2, "thallium": 0.14, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-17", "lat": 39.0058718408512, "lon": -122.670965598196, "mercury": 13, "arsenic": 1.6, "antimony": 1.1, "thallium": 0.37, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-18", "lat": 39.0059419214144, "lon": -122.670407761354, "mercury": 15, "arsenic": 1.9, "antimony": 1.1, "thallium": 0.21, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-19", "lat": 39.0059954286826, "lon": -122.669340630634, "mercury": 190, "arsenic": 2.5, "antimony": 3.3, "thallium": 0.25, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-20", "lat": 39.0058541335874, "lon": -122.668695106182, "mercury": 860, "arsenic": 1.6, "antimony": 1.2, "thallium": 0.16, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-21", "lat": 39.0058248250639, "lon": -122.668496175238, "mercury": 250, "arsenic": 0.75, "antimony": 1.7, "thallium": 0.086, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-22", "lat": 39.0055402580581, "lon": -122.671290869564, "mercury": 12, "arsenic": 2.3, "antimony": 1.2, "thallium": 0.2, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-23", "lat": 39.0054243555602, "lon": -122.670547928259, "mercury": 130, "arsenic": 25.0, "antimony": 19, "thallium": 0.069, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-24", "lat": 39.0055518788096, "lon": -122.670263878377, "mercury": 150, "arsenic": 6.2, "antimony": 7.7, "thallium": 0.15, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-26", "lat": 39.0055503370111, "lon": -122.66874609639, "mercury": 1900, "arsenic": 1.8, "antimony": 2.4, "thallium": 0.1, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-27", "lat": 39.0051611876408, "lon": -122.668846236967, "mercury": 300, "arsenic": 2.4, "antimony": 2.1, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-28", "lat": 39.0050616739102, "lon": -122.668059897701, "mercury": 1000, "arsenic": 17.0, "antimony": 28, "thallium": 0.38, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-29", "lat": 39.0049314082585, "lon": -122.668524170383, "mercury": 180, "arsenic": 3.7, "antimony": 1.7, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-30", "lat": 39.0046218961845, "lon": -122.668295662275, "mercury": 170, "arsenic": 3.0, "antimony": 1.1, "thallium": 0.23, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP02-06", "lat": 39.0077377244773, "lon": -122.666085540427, "mercury": 240, "arsenic": 73.0, "antimony": 150, "thallium": 0.18, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-07", "lat": 39.007861143897, "lon": -122.665725704378, "mercury": 150, "arsenic": 6.0, "antimony": 2.8, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-08", "lat": 39.0075612881797, "lon": -122.665515674961, "mercury": 71, "arsenic": 7.3, "antimony": 11, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-09", "lat": 39.0072413067667, "lon": -122.665502563968, "mercury": 150, "arsenic": 4.6, "antimony": 1.4, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-10", "lat": 39.0070201417899, "lon": -122.665768079405, "mercury": 84, "arsenic": 3.5, "antimony": 1.5, "thallium": 0.17, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-11", "lat": 39.0066955368688, "lon": -122.66678842294, "mercury": 180, "arsenic": 1.4, "antimony": 1.6, "thallium": 0.11, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-12", "lat": 39.006756126569, "lon": -122.666573188329, "mercury": 87, "arsenic": 1.7, "antimony": 1.5, "thallium": 0.21, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-13", "lat": 39.006643297853, "lon": -122.666102913606, "mercury": 61, "arsenic": 1.5, "antimony": 1.1, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-14", "lat": 39.0066653925818, "lon": -122.665912932291, "mercury": 470, "arsenic": 2.1, "antimony": 1, "thallium": 0.18, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-15", "lat": 39.0068355740038, "lon": -122.665558947417, "mercury": 36, "arsenic": 2.6, "antimony": 1.1, "thallium": 0.16, "priority": "LOW", "color": "#72af26", "area": "ABWP02"}, {"id": "ABWP02-16", "lat": 39.0064706825048, "lon": -122.666955937698, "mercury": 1800, "arsenic": 0.39, "antimony": 1, "thallium": 0.42, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-17", "lat": 39.00646213935, "lon": -122.666538142676, "mercury": 120, "arsenic": 0.81, "antimony": 0.39, "thallium": 0.1, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-18", "lat": 39.0064029036921, "lon": -122.666183457338, "mercury": 700, "arsenic": 0.65, "antimony": 1.7, "thallium": 0.84, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-19", "lat": 39.0064851265372, "lon": -122.665219767343, "mercury": 38, "arsenic": 2.7, "antimony": 1.1, "thallium": 0.12, "priority": "LOW", "color": "#72af26", "area": "ABWP02"}, {"id": "ABWP02-20", "lat": 39.0061432832195, "lon": -122.665790707727, "mercury": 280, "arsenic": 1.1, "antimony": 0.53, "thallium": 0.18, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-21", "lat": 39.0062087938604, "lon": -122.665368221157, "mercury": 35, "arsenic": 1.9, "antimony": 1.1, "thallium": 0.11, "priority": "LOW", "color": "#72af26", "area": "ABWP02"}, {"id": "ABWP02-22", "lat": 39.0059501904703, "lon": -122.666054193426, "mercury": 830, "arsenic": 1.5, "antimony": 1.3, "thallium": 0.13, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-23", "lat": 39.00605032714, "lon": -122.665907204376, "mercury": 390, "arsenic": 1.5, "antimony": 1.1, "thallium": 0.16, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-24", "lat": 39.0059621193256, "lon": -122.6654042948, "mercury": 60, "arsenic": 2.0, "antimony": 1.1, "thallium": 0.2, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-25", "lat": 39.0056157306986, "lon": -122.666677766283, "mercury": 820, "arsenic": 0.67, "antimony": 1.1, "thallium": 0.041, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-26", "lat": 39.0057140087177, "lon": -122.666256815418, "mercury": 2700, "arsenic": 3.7, "antimony": 4.5, "thallium": 0.046, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-27", "lat": 39.0053815765848, "lon": -122.666257040122, "mercury": 290, "arsenic": 1.7, "antimony": 0.72, "thallium": 0.14, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-28", "lat": 39.0054541287926, "lon": -122.665326232546, "mercury": 94, "arsenic": 1.7, "antimony": 0.71, "thallium": 0.15, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-29", "lat": 39.0051410522782, "lon": -122.666306292323, "mercury": 180, "arsenic": 1.7, "antimony": 0.7, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-30", "lat": 39.0051985431479, "lon": -122.665462531262, "mercury": 85, "arsenic": 1.5, "antimony": 1.3, "thallium": 0.12, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}];
+        var testpits = [{"id": "ABWP02-01-TP1", "lat": 39.00749, "lon": -122.66675, "depth": 4, "ph": "5.38-5.51", "notes": "Andesite contact at 0.5 ft"}, {"id": "ABWP02-02-TP1", "lat": 39.00755, "lon": -122.66541, "depth": 4, "ph": "4.76-4.81", "notes": "Lots of rock/boulders"}, {"id": "ABWP02-03-TP1", "lat": 39.00642, "lon": -122.66579, "depth": 4, "ph": "5.42-5.61", "notes": "Andesite contact 0.25-0.5 ft"}, {"id": "ABWP02-04-TP1", "lat": 39.00594, "lon": -122.66631, "depth": 4, "ph": "3.86-4.35", "notes": "Most acidic - possible waste rock"}, {"id": "ABWP02-05-TP1", "lat": 39.00571, "lon": -122.66558, "depth": 4, "ph": "4.99-5.06", "notes": "Sulfur smell at 4ft"}];
+        
+        var map;
+        var layers = {
+            sampled2025: null,
+            notSampled2025: null,
+            eaSamples: null,
+            eaTestPits: null,
+            planned: null
+        };
+        var markers2025 = {};
+        var markersEA = {};
+        var currentMode = 'view';
+        var plannedPoints = [];
+        var pendingPoint = null;
+        
+        // Analysis tools variables
+        var measureMode = false;
+        var measurePoints = [];
+        var measureMarkers = [];
+        var measureLine = null;
+        var gapLayer = null;
+        var gapsVisible = false;
+        var hotzoneLayer = null;
+        var hotzoneVisible = false;
+        var gridSizeFt = 50;  // Default 50ft, adjustable 25-100ft
+        var includePlannedInGaps = true;  // Toggle for including planned points in gap analysis
+        var currentAnalyte = 'Mercury';
+        
+        // Thresholds for each analyte (low = screening, high = 10x screening)
+        var thresholds = {
+            Mercury: { low: 58, high: 580 },
+            Arsenic: { low: 6.1, high: 61 },
+            Antimony: { low: 7.5, high: 75 },
+            Thallium: { low: 0.4, high: 4 }
+        };
+
+        function fmt(val) {
+            if (val === null || val === undefined || isNaN(val)) return '—';
+            return Number(val).toLocaleString();
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Calculate center from all points
+            var allLats = samples2025.map(s => s.lat).concat(eaSamples.map(e => e.lat));
+            var allLons = samples2025.map(s => s.lon).concat(eaSamples.map(e => e.lon));
+            var centerLat = allLats.reduce((a, b) => a + b) / allLats.length;
+            var centerLon = allLons.reduce((a, b) => a + b) / allLons.length;
+
+            map = L.map('map').setView([centerLat, centerLon], 16);
+
+            var googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                attribution: '© Google', maxZoom: 22
+            }).addTo(map);
+
+            var googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                attribution: '© Google', maxZoom: 22
+            });
+
+            L.control.layers({"Satellite": googleSat, "Hybrid": googleHybrid}).addTo(map);
+
+            // Initialize layer groups
+            layers.sampled2025 = L.layerGroup().addTo(map);
+            layers.notSampled2025 = L.layerGroup().addTo(map);
+            layers.eaSamples = L.layerGroup().addTo(map);
+            layers.eaTestPits = L.layerGroup().addTo(map);
+            layers.planned = L.layerGroup().addTo(map);
+
+            // Add 2025 samples (circles)
+            samples2025.forEach(function(s) {
+                var marker = L.circleMarker([s.lat, s.lon], {
+                    radius: 9, fillColor: s.color, color: '#000',
+                    weight: 2, opacity: 1, fillOpacity: 0.85
+                });
+
+                var hg = s.metals ? s.metals.Mercury : null;
+                var arsenic = s.metals ? s.metals.Arsenic : null;
+                var hgText = hg !== null ? fmt(hg) + ' mg/kg' : 'Not sampled';
+                var asText = arsenic !== null ? fmt(arsenic) + ' mg/kg' : '—';
+                
+                // Build metals grid for popup
+                var metalsHtml = '<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; margin-top: 6px; font-size: 9px;">';
+                var keyMetals = ['Mercury', 'Arsenic', 'Antimony', 'Thallium', 'Lead', 'Chromium', 'Cadmium', 'Copper', 'Nickel', 'Zinc', 'Barium', 'Cobalt', 'Vanadium', 'Selenium', 'Silver', 'Beryllium', 'Iron', 'Manganese', 'Aluminum', 'Calcium', 'Magnesium', 'Potassium', 'Sodium'];
+                if (s.metals) {
+                    keyMetals.forEach(function(m) {
+                        var val = s.metals[m];
+                        if (val !== null && val !== undefined) {
+                            var exceed = (m === 'Mercury' && val > 58) || (m === 'Arsenic' && val > 6.1) || 
+                                         (m === 'Antimony' && val > 7.5) || (m === 'Thallium' && val > 0.4);
+                            var style = exceed ? 'background: #ffcccc; font-weight: bold;' : 'background: #f0f0f0;';
+                            metalsHtml += '<div style="' + style + ' padding: 2px 3px; border-radius: 2px; white-space: nowrap;"><b>' + m.substring(0,4) + ':</b> ' + fmt(val) + '</div>';
+                        }
+                    });
+                }
+                metalsHtml += '</div>';
+                
+                var popupContent = 
+                    '<div style="font-family: Arial; min-width: 280px; max-width: 320px;">' +
+                    '<h4 style="margin: 0 0 6px 0; color: #1F4E79;">2025: ' + s.label + '</h4>' +
+                    '<b>Mercury:</b> ' + hgText + (hg && hg > 58 ? ' <span style="color:red;">⚠ EXCEEDS</span>' : '') + '<br>' +
+                    '<b>Arsenic:</b> ' + asText + (arsenic && arsenic > 6.1 ? ' <span style="color:red;">⚠ EXCEEDS</span>' : '') + '<br>' +
+                    '<b>Priority:</b> ' + s.priority + '<br>' +
+                    '<small>' + s.lat.toFixed(6) + ', ' + s.lon.toFixed(6) + '</small>' +
+                    metalsHtml +
+                    '</div>';
+
+                marker.bindPopup(popupContent);
+                marker.bindTooltip('2025: ' + s.label, {direction: 'top', offset: [0, -8]});
+                marker.sampleNum = s.num;  // Store reference for color updates
+                
+                if (s.sampled) {
+                    marker.addTo(layers.sampled2025);
+                } else {
+                    marker.addTo(layers.notSampled2025);
+                }
+                markers2025[s.num] = marker;
+            });
+
+            // Add EA samples (triangles using divIcon)
+            eaSamples.forEach(function(e) {
+                var triangleHtml = '<div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid ' + e.color + '; filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));"></div>';
+                
+                var marker = L.marker([e.lat, e.lon], {
+                    icon: L.divIcon({
+                        className: 'ea-triangle',
+                        html: triangleHtml,
+                        iconSize: [16, 14],
+                        iconAnchor: [8, 14]
+                    })
+                });
+
+                var popupContent = 
+                    '<div style="font-family: Arial; min-width: 200px;">' +
+                    '<h4 style="margin: 0 0 6px 0; color: #8B4513;">EA: ' + e.id + '</h4>' +
+                    '<b>Mercury:</b> ' + fmt(e.mercury) + ' mg/kg' + (e.mercury > 58 ? ' <span style="color:red;">⚠</span>' : '') + '<br>' +
+                    '<b>Arsenic:</b> ' + fmt(e.arsenic) + ' mg/kg' + (e.arsenic > 6.1 ? ' <span style="color:red;">⚠</span>' : '') + '<br>' +
+                    '<b>Antimony:</b> ' + fmt(e.antimony) + ' mg/kg<br>' +
+                    '<b>Thallium:</b> ' + fmt(e.thallium) + ' mg/kg<br>' +
+                    '<b>Priority:</b> ' + e.priority + '<br>' +
+                    '<small>' + e.lat.toFixed(6) + ', ' + e.lon.toFixed(6) + '</small>' +
+                    '</div>';
+
+                marker.bindPopup(popupContent);
+                marker.bindTooltip('EA: ' + e.id + ' Hg=' + fmt(e.mercury), {direction: 'top', offset: [0, -12]});
+                marker.sampleId = e.id;  // Store reference for color updates
+                marker.addTo(layers.eaSamples);
+                markersEA[e.id] = marker;
+            });
+
+            // Add EA test pits
+            testpits.forEach(function(tp) {
+                var marker = L.marker([tp.lat, tp.lon], {
+                    icon: L.divIcon({
+                        className: 'testpit-icon',
+                        html: '<div style="background: #9c27b0; width: 12px; height: 12px; border: 2px solid #000; transform: rotate(45deg);"></div>',
+                        iconSize: [12, 12], iconAnchor: [6, 6]
+                    })
+                });
+                marker.bindPopup('<b>EA Test Pit: ' + tp.id + '</b><br>pH: ' + tp.ph + '<br>' + tp.notes);
+                marker.addTo(layers.eaTestPits);
+            });
+
+            // Map events
+            map.on('mousemove', function(e) {
+                document.getElementById('cursorCoords').innerHTML = 
+                    'Lat: ' + e.latlng.lat.toFixed(6) + ', Lon: ' + e.latlng.lng.toFixed(6);
+            });
+
+            map.on('click', function(e) {
+                // Handle measurement mode
+                if (measureMode) {
+                    handleMeasureClick(e.latlng);
+                    return;
+                }
+                
+                if (currentMode === 'view') return;
+                
+                var lat = e.latlng.lat, lon = e.latlng.lng;
+                var typeLabel = currentMode === 'proposed' ? 'Proposed' : 'Step-out';
+                var typeColor = currentMode === 'proposed' ? '#00bfff' : '#ff6b00';
+                var pointNum = getNextPointNumber(currentMode);
+                var pointId = currentMode === 'proposed' ? 'P-' + pointNum : 'SO-' + pointNum;
+                
+                var popupContent = 
+                    '<div style="font-family: Arial; padding: 5px;">' +
+                    '<h4 style="color: ' + typeColor + '; margin: 0 0 8px 0;">Add ' + typeLabel + '</h4>' +
+                    '<div style="font-size: 11px; margin-bottom: 5px;"><b>ID:</b> ' + pointId + '</div>' +
+                    '<div style="font-size: 10px; margin-bottom: 8px; font-family: monospace;">' + lat.toFixed(6) + ', ' + lon.toFixed(6) + '</div>' +
+                    '<div style="margin-bottom: 6px;">' +
+                        '<label style="font-size: 10px; display: block; margin-bottom: 2px;">Depth:</label>' +
+                        '<select id="pointDepth" style="width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px;">' +
+                            '<option value="Shallow">Shallow</option>' +
+                            '<option value="Deep">Deep</option>' +
+                            '<option value="Both">Both</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<input type="text" id="pointNote" placeholder="Note..." style="width: 100%; padding: 4px; margin-bottom: 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px;">' +
+                    '<div style="display: flex; gap: 5px;">' +
+                        '<button onclick="confirmAddPoint()" style="flex: 1; padding: 5px; background: #1F4E79; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">Add</button>' +
+                        '<button onclick="cancelAddPoint()" style="flex: 1; padding: 5px; background: #ccc; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">Cancel</button>' +
+                    '</div></div>';
+                
+                pendingPoint = {lat: lat, lon: lon, type: currentMode, id: pointId};
+                L.popup({closeButton: false}).setLatLng(e.latlng).setContent(popupContent).openOn(map);
+            });
+
+            // Build 2025 sample list
+            var list2025Html = '';
+            var sorted2025 = samples2025.slice().sort((a, b) => {
+                if (!a.sampled) return 1;
+                if (!b.sampled) return -1;
+                return (b.metals.Mercury || 0) - (a.metals.Mercury || 0);
+            });
+            
+            sorted2025.forEach(function(s) {
+                var hgText = s.metals && s.metals.Mercury !== null ? fmt(s.metals.Mercury) : '—';
+                var asText = s.metals && s.metals.Arsenic !== null ? fmt(s.metals.Arsenic) : '—';
+                var sbText = s.metals && s.metals.Antimony !== null ? fmt(s.metals.Antimony) : '—';
+                var hgFlag = s.metals && s.metals.Mercury && s.metals.Mercury > 58 ? '<span class="flag">⚠</span>' : '';
+                var asFlag = s.metals && s.metals.Arsenic && s.metals.Arsenic > 6.1 ? '<span class="flag">⚠</span>' : '';
+                var sbFlag = s.metals && s.metals.Antimony && s.metals.Antimony > 7.5 ? '<span class="flag">⚠</span>' : '';
+                
+                list2025Html += '<div class="sample-item" style="border-color: ' + s.color + ';" data-type="2025" data-id="' + s.num + '">' +
+                    '<span class="name">' + s.label + '</span>' +
+                    '<span class="hg">Hg:' + hgText + hgFlag + '</span>' +
+                    '<span class="as">As:' + asText + asFlag + '</span>' +
+                    '<span class="sb">Sb:' + sbText + sbFlag + '</span>' +
+                    '</div>';
+            });
+            document.getElementById('sampleList2025').innerHTML = list2025Html;
+
+            // Build EA sample list
+            var listEAHtml = '';
+            var sortedEA = eaSamples.slice().sort((a, b) => (b.mercury || 0) - (a.mercury || 0));
+            
+            sortedEA.forEach(function(e) {
+                var hgFlag = e.mercury && e.mercury > 58 ? '<span class="flag">⚠</span>' : '';
+                var asFlag = e.arsenic && e.arsenic > 6.1 ? '<span class="flag">⚠</span>' : '';
+                var sbFlag = e.antimony && e.antimony > 7.5 ? '<span class="flag">⚠</span>' : '';
+                
+                listEAHtml += '<div class="sample-item" style="border-color: ' + e.color + ';" data-type="EA" data-id="' + e.id + '">' +
+                    '<span class="name">' + e.id + '</span>' +
+                    '<span class="hg">Hg:' + fmt(e.mercury) + hgFlag + '</span>' +
+                    '<span class="as">As:' + fmt(e.arsenic) + asFlag + '</span>' +
+                    '<span class="sb">Sb:' + fmt(e.antimony) + sbFlag + '</span>' +
+                    '</div>';
+            });
+            document.getElementById('sampleListEA').innerHTML = listEAHtml;
+
+            // Event listeners for sample items
+            document.querySelectorAll('.sample-item').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var type = this.getAttribute('data-type');
+                    var id = this.getAttribute('data-id');
+                    if (type === '2025') {
+                        var marker = markers2025[parseInt(id)];
+                        if (marker) { map.setView(marker.getLatLng(), 19); marker.openPopup(); }
+                    } else {
+                        var marker = markersEA[id];
+                        if (marker) { map.setView(marker.getLatLng(), 19); marker.openPopup(); }
+                    }
+                });
+            });
+
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(function(tab) {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(this.getAttribute('data-tab')).classList.add('active');
+                });
+            });
+
+            // Mode buttons
+            document.getElementById('btn-view').addEventListener('click', () => setMode('view'));
+            document.getElementById('btn-proposed').addEventListener('click', () => setMode('proposed'));
+            document.getElementById('btn-stepout').addEventListener('click', () => setMode('stepout'));
+            
+            // Action buttons
+            document.getElementById('btn-undo').addEventListener('click', undoLast);
+            document.getElementById('btn-clear').addEventListener('click', clearAllPlanned);
+            document.getElementById('btn-export').addEventListener('click', exportCSV);
+            document.getElementById('btn-copy').addEventListener('click', copyToClipboard);
+            
+            // Analysis tools
+            document.getElementById('btn-measure').addEventListener('click', toggleMeasureMode);
+            document.getElementById('btn-gaps').addEventListener('click', toggleGapAnalysis);
+            document.getElementById('btn-hotzone').addEventListener('click', toggleHotZones);
+            document.getElementById('btn-grid-down').addEventListener('click', function() { adjustGridSize(-25); });
+            document.getElementById('btn-grid-up').addEventListener('click', function() { adjustGridSize(25); });
+            document.getElementById('btn-include-planned').addEventListener('click', toggleIncludePlanned);
+            document.getElementById('colorBySelect').addEventListener('change', function() {
+                currentAnalyte = this.value;
+                updateMarkerColors();
+                // Refresh hot zones if visible
+                if (hotzoneVisible) {
+                    createHotZoneGrid();
+                    updateHotZoneLegend();
+                }
+            });
+
+            // Layer toggles
+            document.getElementById('toggle2025Sampled').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.sampled2025) : map.removeLayer(layers.sampled2025);
+            });
+            document.getElementById('toggle2025NotSampled').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.notSampled2025) : map.removeLayer(layers.notSampled2025);
+            });
+            document.getElementById('toggleEASamples').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.eaSamples) : map.removeLayer(layers.eaSamples);
+            });
+            document.getElementById('toggleEATestPits').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.eaTestPits) : map.removeLayer(layers.eaTestPits);
+            });
+            document.getElementById('togglePlanned').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.planned) : map.removeLayer(layers.planned);
+            });
+
+            L.control.scale({imperial: true, metric: true}).addTo(map);
+        });
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-view').className = 'mode-btn' + (mode === 'view' ? ' active-view' : '');
+            document.getElementById('btn-proposed').className = 'mode-btn' + (mode === 'proposed' ? ' active-proposed' : '');
+            document.getElementById('btn-stepout').className = 'mode-btn' + (mode === 'stepout' ? ' active-stepout' : '');
+            document.getElementById('map').classList.toggle('planning-mode', mode !== 'view');
+        }
+
+        function getNextPointNumber(type) {
+            var prefix = type === 'proposed' ? 'P-' : 'SO-';
+            // Get all existing numbers for this type
+            var usedNums = [];
+            plannedPoints.forEach(function(p) {
+                if (p.id.startsWith(prefix)) {
+                    var num = parseInt(p.id.substring(prefix.length));
+                    usedNums.push(num);
+                }
+            });
+            // Find lowest available number starting from 1
+            var nextNum = 1;
+            while (usedNums.includes(nextNum)) {
+                nextNum++;
+            }
+            return nextNum;
+        }
+
+        function confirmAddPoint() {
+            if (!pendingPoint) return;
+            var note = document.getElementById('pointNote') ? document.getElementById('pointNote').value : '';
+            var depthSelect = document.getElementById('pointDepth');
+            var depth = depthSelect ? depthSelect.value : 'Shallow';
+            var point = {
+                id: pendingPoint.id, type: pendingPoint.type,
+                lat: pendingPoint.lat, lon: pendingPoint.lon,
+                note: note, depth: depth, 
+                color: pendingPoint.type === 'proposed' ? '#00bfff' : '#ff6b00'
+            };
+            plannedPoints.push(point);
+            addPlannedMarker(point);
+            updatePlannedPointsList();
+            map.closePopup();
+            pendingPoint = null;
+            // Refresh gap grid if visible
+            if (gapsVisible) createGapGrid();
+        }
+
+        function cancelAddPoint() { map.closePopup(); pendingPoint = null; }
+
+        function addPlannedMarker(point) {
+            var marker = L.marker([point.lat, point.lon], {
+                draggable: true,
+                icon: L.divIcon({
+                    className: 'planned-marker',
+                    html: '<div style="width: 14px; height: 14px; background: ' + point.color + '44; border: 3px solid ' + point.color + '; transform: rotate(45deg); cursor: move;"></div>',
+                    iconSize: [14, 14], iconAnchor: [7, 7]
+                })
+            });
+            
+            function getEditPopupContent() {
+                var typeLabel = point.type === 'proposed' ? 'Proposed' : 'Step-out';
+                var currentDepth = point.depth || 'Shallow';
+                return '<div style="font-family: Arial; padding: 5px; min-width: 200px;">' +
+                    '<h4 style="color: ' + point.color + '; margin: 0 0 8px 0;">' + typeLabel + ': ' + point.id + '</h4>' +
+                    '<div style="font-size: 10px; margin-bottom: 8px; font-family: monospace;">' + point.lat.toFixed(6) + ', ' + point.lon.toFixed(6) + '</div>' +
+                    '<div style="margin-bottom: 6px;">' +
+                        '<label style="font-size: 10px; display: block; margin-bottom: 2px;">Depth:</label>' +
+                        '<select id="editPointDepth" style="width: 100%; padding: 4px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px;">' +
+                            '<option value="Shallow"' + (currentDepth === 'Shallow' ? ' selected' : '') + '>Shallow</option>' +
+                            '<option value="Deep"' + (currentDepth === 'Deep' ? ' selected' : '') + '>Deep</option>' +
+                            '<option value="Both"' + (currentDepth === 'Both' ? ' selected' : '') + '>Both</option>' +
+                        '</select>' +
+                    '</div>' +
+                    '<input type="text" id="editPointNote" value="' + (point.note || '').replace(/"/g, '&quot;') + '" placeholder="Note..." style="width: 100%; padding: 4px; margin-bottom: 6px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px;">' +
+                    '<div style="display: flex; gap: 5px;">' +
+                        '<button onclick="savePointNote(\'' + point.id + '\')" style="flex: 1; padding: 5px; background: #1F4E79; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">Save</button>' +
+                        '<button onclick="deletePointById(\'' + point.id + '\')" style="flex: 1; padding: 5px; background: #aa3333; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;">Delete</button>' +
+                    '</div>' +
+                    '<div style="font-size: 9px; color: #888; margin-top: 6px; text-align: center;">Drag marker to reposition</div>' +
+                    '</div>';
+            }
+            
+            marker.bindPopup(getEditPopupContent);
+            marker.bindTooltip(point.id, {permanent: true, direction: 'top', offset: [0, -8]});
+            marker.pointId = point.id;
+            marker.pointRef = point;  // Store reference to update note
+            
+            // Handle drag end - update coordinates
+            marker.on('dragend', function(e) {
+                var newLatLng = e.target.getLatLng();
+                point.lat = newLatLng.lat;
+                point.lon = newLatLng.lng;
+                updatePlannedPointsList();
+                // Refresh gap grid if visible
+                if (gapsVisible) createGapGrid();
+            });
+            
+            marker.addTo(layers.planned);
+        }
+        
+        function savePointNote(pointId) {
+            var noteInput = document.getElementById('editPointNote');
+            var depthSelect = document.getElementById('editPointDepth');
+            if (!noteInput) return;
+            var newNote = noteInput.value;
+            var newDepth = depthSelect ? depthSelect.value : 'Shallow';
+            
+            // Find and update the point
+            var point = plannedPoints.find(p => p.id === pointId);
+            if (point) {
+                point.note = newNote;
+                point.depth = newDepth;
+                updatePlannedPointsList();
+            }
+            map.closePopup();
+        }
+        
+        function deletePointById(pointId) {
+            var idx = plannedPoints.findIndex(p => p.id === pointId);
+            if (idx !== -1) {
+                deletePoint(idx);
+            }
+            map.closePopup();
+        }
+
+        function updatePlannedPointsList() {
+            var listDiv = document.getElementById('plannedPointsList');
+            document.getElementById('pointCount').textContent = plannedPoints.length;
+            if (plannedPoints.length === 0) {
+                listDiv.innerHTML = '<div class="no-points">Click map in Proposed/Step-out mode</div>';
+                return;
+            }
+            var html = '';
+            plannedPoints.forEach(function(p, idx) {
+                var depthAbbr = (p.depth || 'Shallow').charAt(0);  // S, D, or B
+                var noteText = p.note ? ' ' + p.note.substring(0, 12) + (p.note.length > 12 ? '..' : '') : '';
+                html += '<div class="planned-point ' + p.type + '" data-pointid="' + p.id + '" style="cursor:pointer;">' +
+                    '<span class="name">' + p.id + '</span>' +
+                    '<span class="coords">[' + depthAbbr + '] ' + p.lat.toFixed(5) + ', ' + p.lon.toFixed(5) + noteText + '</span>' +
+                    '<button class="delete-btn" data-idx="' + idx + '">×</button></div>';
+            });
+            listDiv.innerHTML = html;
+            // Click to zoom and edit
+            listDiv.querySelectorAll('.planned-point').forEach(function(item) {
+                item.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('delete-btn')) return;
+                    var pointId = this.getAttribute('data-pointid');
+                    zoomToPlannedPoint(pointId);
+                });
+            });
+            listDiv.querySelectorAll('.delete-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    deletePoint(parseInt(this.getAttribute('data-idx')));
+                });
+            });
+        }
+        
+        function zoomToPlannedPoint(pointId) {
+            layers.planned.eachLayer(function(layer) {
+                if (layer.pointId === pointId) {
+                    map.setView(layer.getLatLng(), 19);
+                    layer.openPopup();
+                }
+            });
+        }
+
+        function deletePoint(idx) {
+            var point = plannedPoints[idx];
+            layers.planned.eachLayer(function(layer) {
+                if (layer.pointId === point.id) layers.planned.removeLayer(layer);
+            });
+            plannedPoints.splice(idx, 1);
+            updatePlannedPointsList();
+            // Refresh gap grid if visible
+            if (gapsVisible) createGapGrid();
+        }
+
+        function undoLast() { if (plannedPoints.length > 0) deletePoint(plannedPoints.length - 1); }
+
+        function clearAllPlanned() {
+            if (plannedPoints.length === 0 || !confirm('Clear all points?')) return;
+            layers.planned.clearLayers();
+            plannedPoints = [];
+            updatePlannedPointsList();
+            // Refresh gap grid if visible
+            if (gapsVisible) createGapGrid();
+        }
+
+        function exportCSV() {
+            if (plannedPoints.length === 0) { alert('No points'); return; }
+            var csv = 'Point_ID,Type,Depth,Latitude,Longitude,Note\n';
+            plannedPoints.forEach(p => csv += p.id + ',' + p.type + ',' + (p.depth || 'Shallow') + ',' + p.lat.toFixed(6) + ',' + p.lon.toFixed(6) + ',"' + (p.note || '') + '"\n');
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'}));
+            a.download = 'SBMM_Planned_' + new Date().toISOString().slice(0,10) + '.csv';
+            a.click();
+        }
+
+        function copyToClipboard() {
+            if (plannedPoints.length === 0) { alert('No points'); return; }
+            var text = 'SBMM Round 2 Planned Locations\n';
+            plannedPoints.forEach(p => text += p.id + ' [' + (p.depth || 'Shallow') + ']: ' + p.lat.toFixed(6) + ', ' + p.lon.toFixed(6) + (p.note ? ' - ' + p.note : '') + '\n');
+            navigator.clipboard.writeText(text).then(() => alert('Copied!'));
+        }
+        
+        // ===== MEASUREMENT TOOL =====
+        function toggleMeasureMode() {
+            measureMode = !measureMode;
+            var btn = document.getElementById('btn-measure');
+            var mapEl = document.getElementById('map');
+            
+            if (measureMode) {
+                btn.classList.add('active');
+                mapEl.classList.add('measure-mode');
+                clearMeasurement();
+                document.getElementById('measureResult').classList.add('visible');
+                document.getElementById('distanceValue').textContent = 'Click 2 points...';
+                document.getElementById('distanceMeters').textContent = '—';
+            } else {
+                btn.classList.remove('active');
+                mapEl.classList.remove('measure-mode');
+                clearMeasurement();
+                document.getElementById('measureResult').classList.remove('visible');
+            }
+        }
+        
+        function handleMeasureClick(latlng) {
+            // Add marker
+            var marker = L.circleMarker(latlng, {
+                radius: 6, fillColor: '#ffff00', color: '#000',
+                weight: 2, fillOpacity: 1
+            }).addTo(map);
+            measureMarkers.push(marker);
+            measurePoints.push(latlng);
+            
+            if (measurePoints.length === 1) {
+                document.getElementById('distanceValue').textContent = 'Click 2nd point...';
+            } else if (measurePoints.length === 2) {
+                // Draw line
+                measureLine = L.polyline(measurePoints, {
+                    color: '#ffff00', weight: 3, dashArray: '10, 5'
+                }).addTo(map);
+                
+                // Calculate distance
+                var dist = measurePoints[0].distanceTo(measurePoints[1]);
+                var distFeet = dist * 3.28084;
+                document.getElementById('distanceValue').textContent = distFeet.toFixed(1);
+                document.getElementById('distanceMeters').textContent = dist.toFixed(1);
+                
+                // Reset for next measurement after delay
+                setTimeout(function() {
+                    clearMeasurement();
+                    document.getElementById('distanceValue').textContent = 'Click 2 points...';
+                    document.getElementById('distanceMeters').textContent = '—';
+                }, 3000);
+            }
+        }
+        
+        function clearMeasurement() {
+            measureMarkers.forEach(m => map.removeLayer(m));
+            measureMarkers = [];
+            measurePoints = [];
+            if (measureLine) { map.removeLayer(measureLine); measureLine = null; }
+        }
+        
+        // ===== GRID SIZE ADJUSTMENT =====
+        function adjustGridSize(delta) {
+            var newSize = gridSizeFt + delta;
+            if (newSize < 25) newSize = 25;
+            if (newSize > 100) newSize = 100;
+            gridSizeFt = newSize;
+            
+            // Update display
+            document.getElementById('gridSizeDisplay').textContent = gridSizeFt + ' ft';
+            document.getElementById('gapGridSize').textContent = gridSizeFt;
+            
+            // Refresh grids if visible
+            if (gapsVisible) createGapGrid();
+            if (hotzoneVisible) createHotZoneGrid();
+        }
+        
+        function toggleIncludePlanned() {
+            includePlannedInGaps = !includePlannedInGaps;
+            var btn = document.getElementById('btn-include-planned');
+            if (includePlannedInGaps) {
+                btn.textContent = '📍 On';
+                btn.classList.add('active');
+            } else {
+                btn.textContent = '📍 Off';
+                btn.classList.remove('active');
+            }
+            // Refresh gap grid if visible
+            if (gapsVisible) createGapGrid();
+        }
+        
+        // ===== GAP ANALYSIS =====
+        function toggleGapAnalysis() {
+            gapsVisible = !gapsVisible;
+            var btn = document.getElementById('btn-gaps');
+            var legend = document.getElementById('gapLegend');
+            
+            if (gapsVisible) {
+                btn.classList.add('active-gap');
+                legend.classList.add('visible');
+                document.getElementById('gapGridSize').textContent = gridSizeFt;
+                createGapGrid();
+            } else {
+                btn.classList.remove('active-gap');
+                legend.classList.remove('visible');
+                if (gapLayer) { map.removeLayer(gapLayer); gapLayer = null; }
+            }
+        }
+        
+        function createGapGrid() {
+            if (gapLayer) map.removeLayer(gapLayer);
+            gapLayer = L.layerGroup().addTo(map);
+            
+            // Get all sample locations (both 2025, EA, AND optionally planned points)
+            var allSamples = [];
+            samples2025.filter(s => s.sampled).forEach(s => allSamples.push({lat: s.lat, lon: s.lon}));
+            eaSamples.forEach(e => allSamples.push({lat: e.lat, lon: e.lon}));
+            // Include planned points only if toggle is on
+            if (includePlannedInGaps) {
+                plannedPoints.forEach(p => allSamples.push({lat: p.lat, lon: p.lon}));
+            }
+            
+            // Define grid bounds (slightly larger than data extent)
+            var minLat = Math.min(...allSamples.map(s => s.lat)) - 0.0005;
+            var maxLat = Math.max(...allSamples.map(s => s.lat)) + 0.0005;
+            var minLon = Math.min(...allSamples.map(s => s.lon)) - 0.0005;
+            var maxLon = Math.max(...allSamples.map(s => s.lon)) + 0.0005;
+            
+            // Calculate grid size based on gridSizeFt variable
+            // At latitude 39°N: 1° lat ≈ 111km, 1° lon ≈ 86km
+            // 1ft = 0.3048m
+            var sizeMeters = gridSizeFt * 0.3048;
+            var gridSizeLat = sizeMeters / 111000;
+            var gridSizeLon = sizeMeters / 86000;
+            
+            // Search radius equals grid size
+            var searchRadius = sizeMeters;
+            
+            for (var lat = minLat; lat < maxLat; lat += gridSizeLat) {
+                for (var lon = minLon; lon < maxLon; lon += gridSizeLon) {
+                    // Cell center
+                    var centerLat = lat + gridSizeLat / 2;
+                    var centerLon = lon + gridSizeLon / 2;
+                    var centerLatLng = L.latLng(centerLat, centerLon);
+                    
+                    // Count samples within search radius of cell center
+                    var count = 0;
+                    allSamples.forEach(function(s) {
+                        var sampleLatLng = L.latLng(s.lat, s.lon);
+                        var dist = centerLatLng.distanceTo(sampleLatLng);
+                        if (dist <= searchRadius) {
+                            count++;
+                        }
+                    });
+                    
+                    // Color based on density
+                    var color, opacity;
+                    if (count === 0) {
+                        color = '#ff0000'; opacity = 0.35;  // Red - no samples nearby
+                    } else if (count <= 2) {
+                        color = '#ffff00'; opacity = 0.3;   // Yellow - sparse (1-2)
+                    } else {
+                        color = '#00ff00'; opacity = 0.2;   // Green - good (3+)
+                    }
+                    
+                    var bounds = [[lat, lon], [lat + gridSizeLat, lon + gridSizeLon]];
+                    L.rectangle(bounds, {
+                        color: color, weight: 0.5, fillColor: color,
+                        fillOpacity: opacity, opacity: 0.5
+                    }).addTo(gapLayer);
+                }
+            }
+        }
+        
+        // ===== COLOR BY ANALYTE =====
+        function getColorForValue(value, analyte) {
+            if (value === null || value === undefined) return '#808080';
+            var thresh = thresholds[analyte];
+            if (value > thresh.high) return '#d63e2a';  // HIGH - red
+            if (value > thresh.low) return '#f0932b';   // MEDIUM - orange
+            return '#72af26';  // LOW - green
+        }
+        
+        function updateMarkerColors() {
+            var analyte = currentAnalyte;
+            
+            // Update 2025 sampled markers
+            layers.sampled2025.eachLayer(function(marker) {
+                var sampleNum = marker.sampleNum;
+                var sample = samples2025.find(s => s.num === sampleNum);
+                if (sample && sample.metals) {
+                    var value = sample.metals[analyte];
+                    var newColor = getColorForValue(value, analyte);
+                    
+                    // Update circle marker style
+                    marker.setStyle({
+                        fillColor: newColor,
+                        color: '#000'
+                    });
+                }
+            });
+            
+            // Update EA markers
+            layers.eaSamples.eachLayer(function(marker) {
+                var sampleId = marker.sampleId;
+                var sample = eaSamples.find(e => e.id === sampleId);
+                if (sample) {
+                    var value;
+                    switch(analyte) {
+                        case 'Mercury': value = sample.mercury; break;
+                        case 'Arsenic': value = sample.arsenic; break;
+                        case 'Antimony': value = sample.antimony; break;
+                        case 'Thallium': value = sample.thallium; break;
+                    }
+                    var newColor = getColorForValue(value, analyte);
+                    
+                    // Update triangle icon
+                    var triangleHtml = '<div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid ' + newColor + '; filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));"></div>';
+                    marker.setIcon(L.divIcon({
+                        className: 'ea-triangle',
+                        html: triangleHtml,
+                        iconSize: [16, 14],
+                        iconAnchor: [8, 14]
+                    }));
+                }
+            });
+            
+            // Update legend text
+            var thresh = thresholds[analyte];
+            document.querySelector('.section.legend h3').textContent = 
+                'Legend (' + analyte + ': ' + thresh.low + '/' + thresh.high + ' mg/kg)';
+        }
+        
+        // ===== HOT ZONES =====
+        function toggleHotZones() {
+            hotzoneVisible = !hotzoneVisible;
+            var btn = document.getElementById('btn-hotzone');
+            var legend = document.getElementById('hotzoneLegend');
+            
+            if (hotzoneVisible) {
+                btn.classList.add('active-hotzone');
+                legend.classList.add('visible');
+                updateHotZoneLegend();
+                createHotZoneGrid();
+            } else {
+                btn.classList.remove('active-hotzone');
+                legend.classList.remove('visible');
+                if (hotzoneLayer) { map.removeLayer(hotzoneLayer); hotzoneLayer = null; }
+            }
+        }
+        
+        function updateHotZoneLegend() {
+            var abbrev = {Mercury: 'Hg', Arsenic: 'As', Antimony: 'Sb', Thallium: 'Tl'};
+            document.getElementById('hotzoneAnalyte').textContent = abbrev[currentAnalyte];
+        }
+        
+        function getSampleValue(sample, analyte, isEA) {
+            if (isEA) {
+                switch(analyte) {
+                    case 'Mercury': return sample.mercury;
+                    case 'Arsenic': return sample.arsenic;
+                    case 'Antimony': return sample.antimony;
+                    case 'Thallium': return sample.thallium;
+                }
+            } else {
+                return sample.metals ? sample.metals[analyte] : null;
+            }
+            return null;
+        }
+        
+        function createHotZoneGrid() {
+            if (hotzoneLayer) map.removeLayer(hotzoneLayer);
+            hotzoneLayer = L.layerGroup().addTo(map);
+            
+            // Get all sample locations with values
+            var allSamples = [];
+            samples2025.filter(s => s.sampled).forEach(s => {
+                var val = getSampleValue(s, currentAnalyte, false);
+                if (val !== null && val !== undefined) {
+                    allSamples.push({lat: s.lat, lon: s.lon, value: val});
+                }
+            });
+            eaSamples.forEach(e => {
+                var val = getSampleValue(e, currentAnalyte, true);
+                if (val !== null && val !== undefined) {
+                    allSamples.push({lat: e.lat, lon: e.lon, value: val});
+                }
+            });
+            
+            if (allSamples.length === 0) return;
+            
+            // Define grid bounds
+            var minLat = Math.min(...allSamples.map(s => s.lat)) - 0.0005;
+            var maxLat = Math.max(...allSamples.map(s => s.lat)) + 0.0005;
+            var minLon = Math.min(...allSamples.map(s => s.lon)) - 0.0005;
+            var maxLon = Math.max(...allSamples.map(s => s.lon)) + 0.0005;
+            
+            // Calculate grid size based on gridSizeFt variable
+            var sizeMeters = gridSizeFt * 0.3048;
+            var gridSizeLat = sizeMeters / 111000;
+            var gridSizeLon = sizeMeters / 86000;
+            
+            // Search radius equals grid size
+            var searchRadius = sizeMeters;
+            
+            var thresh = thresholds[currentAnalyte];
+            
+            for (var lat = minLat; lat < maxLat; lat += gridSizeLat) {
+                for (var lon = minLon; lon < maxLon; lon += gridSizeLon) {
+                    var centerLat = lat + gridSizeLat / 2;
+                    var centerLon = lon + gridSizeLon / 2;
+                    var centerLatLng = L.latLng(centerLat, centerLon);
+                    
+                    // Find samples within radius and get max value
+                    var maxVal = 0;
+                    var foundAny = false;
+                    allSamples.forEach(function(s) {
+                        var sampleLatLng = L.latLng(s.lat, s.lon);
+                        var dist = centerLatLng.distanceTo(sampleLatLng);
+                        if (dist <= searchRadius) {
+                            foundAny = true;
+                            if (s.value > maxVal) maxVal = s.value;
+                        }
+                    });
+                    
+                    // Only draw cells where we have data
+                    if (!foundAny) continue;
+                    
+                    // Color based on concentration relative to thresholds
+                    var color, opacity;
+                    if (maxVal > thresh.high) {
+                        color = '#ff0000'; opacity = 0.5;  // HIGH - red
+                    } else if (maxVal > thresh.low) {
+                        color = '#ff9900'; opacity = 0.4;  // MEDIUM - orange
+                    } else {
+                        color = '#00cc00'; opacity = 0.25; // LOW - green
+                    }
+                    
+                    var bounds = [[lat, lon], [lat + gridSizeLat, lon + gridSizeLon]];
+                    L.rectangle(bounds, {
+                        color: color, weight: 0.5, fillColor: color,
+                        fillOpacity: opacity, opacity: 0.5
+                    }).addTo(hotzoneLayer);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
