@@ -275,11 +275,11 @@
                     </div>
                 </div>
                 <div class="gap-legend" id="hotzoneLegend">
-                    <div class="gap-legend-title" style="color:#ff6600;">CONTAMINATION INTENSITY (<span id="hotzoneAnalyte">Hg</span>)</div>
+                    <div class="gap-legend-title" style="color:#ff6600;">HOT ZONES - <span id="hotzoneAnalyte">Hg</span> (ROD On-Mine)</div>
                     <div class="gap-legend-items">
-                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,0,0,0.5)"></span>HIGH (&gt;10x)</div>
-                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,165,0,0.4)"></span>MED (1-10x)</div>
-                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(0,200,0,0.25)"></span>LOW (&lt;1x)</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,0,0,0.5)"></span>Exceeds ROD (&gt;204)</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,165,0,0.4)"></span>Above PMB (35-204)</div>
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(0,200,0,0.25)"></span>Below PMB (≤35)</div>
                     </div>
                 </div>
             </div>
@@ -302,6 +302,8 @@
                     </div>
                     <div class="legend-col">
                         <div class="legend-title">OTHER</div>
+                        <div class="legend-item"><span class="legend-dot" style="background: #0099cc; border: 2px solid #006699;"></span>Soil Boring (SB)</div>
+                        <div class="legend-item"><span style="color: #cc6600; font-weight: bold; margin-right: 5px;">✕</span>Test Pit (TP)</div>
                         <div class="legend-item"><span class="legend-square" style="background: #9c27b0;"></span>EA Test Pit</div>
                         <div class="legend-item"><span class="legend-diamond" style="border-color: #00bfff;"></span>Proposed</div>
                         <div class="legend-item"><span class="legend-diamond" style="border-color: #ff6b00;"></span>Step-out</div>
@@ -314,6 +316,11 @@
                     <div class="layer-group-title">2025 Jacobs Sampling</div>
                     <label><input type="checkbox" id="toggle2025Sampled" checked> Sampled (32)</label>
                     <label><input type="checkbox" id="toggle2025NotSampled" checked> Not Sampled (9)</label>
+                </div>
+                <div class="layer-group">
+                    <div class="layer-group-title">2025 Jacobs Borings/Test Pits</div>
+                    <label><input type="checkbox" id="toggleSoilBorings2025"> Soil Borings (44)</label>
+                    <label><input type="checkbox" id="toggleTestPits2025"> Test Pits (51)</label>
                 </div>
                 <div class="layer-group">
                     <div class="layer-group-title">EA Historical Data</div>
@@ -350,13 +357,21 @@
         var eaSamples = [{"id": "ABWP01-01", "lat": 39.0077465970319, "lon": -122.667500272217, "mercury": 450, "arsenic": 9.5, "antimony": 7.9, "thallium": 0.2, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-02", "lat": 39.0075456088709, "lon": -122.669340150299, "mercury": 990, "arsenic": 45.0, "antimony": 88, "thallium": 0.19, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-03", "lat": 39.0075495799947, "lon": -122.667932476644, "mercury": 21, "arsenic": 2.7, "antimony": 0.91, "thallium": 0.18, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-04", "lat": 39.0071453680858, "lon": -122.667684592255, "mercury": 550, "arsenic": 4.1, "antimony": 3.6, "thallium": 0.18, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-05", "lat": 39.0067396027714, "lon": -122.669896404149, "mercury": 18, "arsenic": 2.1, "antimony": 0.93, "thallium": 0.17, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-06", "lat": 39.0069174799061, "lon": -122.669274695302, "mercury": 1100, "arsenic": 1.4, "antimony": 1.2, "thallium": 0.22, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-07", "lat": 39.0067803811149, "lon": -122.668870411799, "mercury": 560, "arsenic": 0.9, "antimony": 1.1, "thallium": 0.17, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-08", "lat": 39.0068286657774, "lon": -122.668532493722, "mercury": 66, "arsenic": 1.3, "antimony": 0.89, "thallium": 0.14, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-09", "lat": 39.006538404952, "lon": -122.670171560681, "mercury": 15, "arsenic": 2.2, "antimony": 0.92, "thallium": 0.3, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-10", "lat": 39.0065895547403, "lon": -122.669775496228, "mercury": 42, "arsenic": 5.2, "antimony": 11, "thallium": 0.21, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-11", "lat": 39.0064832859138, "lon": -122.669224265643, "mercury": 700, "arsenic": 1.7, "antimony": 0.92, "thallium": 0.27, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-12", "lat": 39.0066591809989, "lon": -122.668430402273, "mercury": 67, "arsenic": 0.84, "antimony": 1.4, "thallium": 0.062, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-13", "lat": 39.0061396268048, "lon": -122.670177754725, "mercury": 18, "arsenic": 1.7, "antimony": 1.1, "thallium": 0.29, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-14", "lat": 39.0062347170494, "lon": -122.669290027868, "mercury": 73, "arsenic": 2.0, "antimony": 0.93, "thallium": 0.19, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-15", "lat": 39.0062378287727, "lon": -122.669012462979, "mercury": 180, "arsenic": 1.2, "antimony": 1, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-16", "lat": 39.0062118225611, "lon": -122.668588508445, "mercury": 79, "arsenic": 0.7, "antimony": 1.2, "thallium": 0.14, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-17", "lat": 39.0058718408512, "lon": -122.670965598196, "mercury": 13, "arsenic": 1.6, "antimony": 1.1, "thallium": 0.37, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-18", "lat": 39.0059419214144, "lon": -122.670407761354, "mercury": 15, "arsenic": 1.9, "antimony": 1.1, "thallium": 0.21, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-19", "lat": 39.0059954286826, "lon": -122.669340630634, "mercury": 190, "arsenic": 2.5, "antimony": 3.3, "thallium": 0.25, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-20", "lat": 39.0058541335874, "lon": -122.668695106182, "mercury": 860, "arsenic": 1.6, "antimony": 1.2, "thallium": 0.16, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-21", "lat": 39.0058248250639, "lon": -122.668496175238, "mercury": 250, "arsenic": 0.75, "antimony": 1.7, "thallium": 0.086, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-22", "lat": 39.0055402580581, "lon": -122.671290869564, "mercury": 12, "arsenic": 2.3, "antimony": 1.2, "thallium": 0.2, "priority": "LOW", "color": "#72af26", "area": "ABWP01"}, {"id": "ABWP01-23", "lat": 39.0054243555602, "lon": -122.670547928259, "mercury": 130, "arsenic": 25.0, "antimony": 19, "thallium": 0.069, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-24", "lat": 39.0055518788096, "lon": -122.670263878377, "mercury": 150, "arsenic": 6.2, "antimony": 7.7, "thallium": 0.15, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-26", "lat": 39.0055503370111, "lon": -122.66874609639, "mercury": 1900, "arsenic": 1.8, "antimony": 2.4, "thallium": 0.1, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-27", "lat": 39.0051611876408, "lon": -122.668846236967, "mercury": 300, "arsenic": 2.4, "antimony": 2.1, "thallium": 0.13, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-28", "lat": 39.0050616739102, "lon": -122.668059897701, "mercury": 1000, "arsenic": 17.0, "antimony": 28, "thallium": 0.38, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP01"}, {"id": "ABWP01-29", "lat": 39.0049314082585, "lon": -122.668524170383, "mercury": 180, "arsenic": 3.7, "antimony": 1.7, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP01-30", "lat": 39.0046218961845, "lon": -122.668295662275, "mercury": 170, "arsenic": 3.0, "antimony": 1.1, "thallium": 0.23, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP01"}, {"id": "ABWP02-06", "lat": 39.0077377244773, "lon": -122.666085540427, "mercury": 240, "arsenic": 73.0, "antimony": 150, "thallium": 0.18, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-07", "lat": 39.007861143897, "lon": -122.665725704378, "mercury": 150, "arsenic": 6.0, "antimony": 2.8, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-08", "lat": 39.0075612881797, "lon": -122.665515674961, "mercury": 71, "arsenic": 7.3, "antimony": 11, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-09", "lat": 39.0072413067667, "lon": -122.665502563968, "mercury": 150, "arsenic": 4.6, "antimony": 1.4, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-10", "lat": 39.0070201417899, "lon": -122.665768079405, "mercury": 84, "arsenic": 3.5, "antimony": 1.5, "thallium": 0.17, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-11", "lat": 39.0066955368688, "lon": -122.66678842294, "mercury": 180, "arsenic": 1.4, "antimony": 1.6, "thallium": 0.11, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-12", "lat": 39.006756126569, "lon": -122.666573188329, "mercury": 87, "arsenic": 1.7, "antimony": 1.5, "thallium": 0.21, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-13", "lat": 39.006643297853, "lon": -122.666102913606, "mercury": 61, "arsenic": 1.5, "antimony": 1.1, "thallium": 0.22, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-14", "lat": 39.0066653925818, "lon": -122.665912932291, "mercury": 470, "arsenic": 2.1, "antimony": 1, "thallium": 0.18, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-15", "lat": 39.0068355740038, "lon": -122.665558947417, "mercury": 36, "arsenic": 2.6, "antimony": 1.1, "thallium": 0.16, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-16", "lat": 39.0064706825048, "lon": -122.666955937698, "mercury": 1800, "arsenic": 0.39, "antimony": 1, "thallium": 0.42, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-17", "lat": 39.00646213935, "lon": -122.666538142676, "mercury": 120, "arsenic": 0.81, "antimony": 0.39, "thallium": 0.1, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-18", "lat": 39.0064029036921, "lon": -122.666183457338, "mercury": 700, "arsenic": 0.65, "antimony": 1.7, "thallium": 0.84, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-19", "lat": 39.0064851265372, "lon": -122.665219767343, "mercury": 38, "arsenic": 2.7, "antimony": 1.1, "thallium": 0.12, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-20", "lat": 39.0061432832195, "lon": -122.665790707727, "mercury": 280, "arsenic": 1.1, "antimony": 0.53, "thallium": 0.18, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-21", "lat": 39.0062087938604, "lon": -122.665368221157, "mercury": 35, "arsenic": 1.9, "antimony": 1.1, "thallium": 0.11, "priority": "LOW", "color": "#72af26", "area": "ABWP02"}, {"id": "ABWP02-22", "lat": 39.0059501904703, "lon": -122.666054193426, "mercury": 830, "arsenic": 1.5, "antimony": 1.3, "thallium": 0.13, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-23", "lat": 39.00605032714, "lon": -122.665907204376, "mercury": 390, "arsenic": 1.5, "antimony": 1.1, "thallium": 0.16, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-24", "lat": 39.0059621193256, "lon": -122.6654042948, "mercury": 60, "arsenic": 2.0, "antimony": 1.1, "thallium": 0.2, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-25", "lat": 39.0056157306986, "lon": -122.666677766283, "mercury": 820, "arsenic": 0.67, "antimony": 1.1, "thallium": 0.041, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-26", "lat": 39.0057140087177, "lon": -122.666256815418, "mercury": 2700, "arsenic": 3.7, "antimony": 4.5, "thallium": 0.046, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-27", "lat": 39.0053815765848, "lon": -122.666257040122, "mercury": 290, "arsenic": 1.7, "antimony": 0.72, "thallium": 0.14, "priority": "HIGH", "color": "#d63e2a", "area": "ABWP02"}, {"id": "ABWP02-28", "lat": 39.0054541287926, "lon": -122.665326232546, "mercury": 94, "arsenic": 1.7, "antimony": 0.71, "thallium": 0.15, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-29", "lat": 39.0051410522782, "lon": -122.666306292323, "mercury": 180, "arsenic": 1.7, "antimony": 0.7, "thallium": 0.13, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}, {"id": "ABWP02-30", "lat": 39.0051985431479, "lon": -122.665462531262, "mercury": 85, "arsenic": 1.5, "antimony": 1.3, "thallium": 0.12, "priority": "MEDIUM", "color": "#f0932b", "area": "ABWP02"}];
         var testpits = [{"id": "ABWP02-01-TP1", "lat": 39.00749, "lon": -122.66675, "depth": 4, "ph": "5.38-5.51", "notes": "Andesite contact at 0.5 ft"}, {"id": "ABWP02-02-TP1", "lat": 39.00755, "lon": -122.66541, "depth": 4, "ph": "4.76-4.81", "notes": "Lots of rock/boulders"}, {"id": "ABWP02-03-TP1", "lat": 39.00642, "lon": -122.66579, "depth": 4, "ph": "5.42-5.61", "notes": "Andesite contact 0.25-0.5 ft"}, {"id": "ABWP02-04-TP1", "lat": 39.00594, "lon": -122.66631, "depth": 4, "ph": "3.86-4.35", "notes": "Most acidic - possible waste rock"}, {"id": "ABWP02-05-TP1", "lat": 39.00571, "lon": -122.66558, "depth": 4, "ph": "4.99-5.06", "notes": "Sulfur smell at 4ft"}];
         
+        // Jacobs 2025 Test Pits (51 locations) - using LOC_ID
+        var testPits2025 = [{"id": "TP01", "lat": 39.007695, "lon": -122.666821, "elev": 1351.0}, {"id": "TP02", "lat": 39.007297, "lon": -122.667213, "elev": 1394.5}, {"id": "TP03", "lat": 39.00722, "lon": -122.667409, "elev": 1371.0}, {"id": "TP05", "lat": 39.007025, "lon": -122.666685, "elev": 1379.5}, {"id": "TP07", "lat": 39.007317, "lon": -122.66655, "elev": 1363.0}, {"id": "TP08", "lat": 39.004994, "lon": -122.664256, "elev": 1378.0}, {"id": "TP12", "lat": 39.00459, "lon": -122.661525, "elev": 1372.0}, {"id": "TP15", "lat": 39.001977, "lon": -122.665252, "elev": 1360.0}, {"id": "TP17", "lat": 39.001901, "lon": -122.666289, "elev": 1360.0}, {"id": "TP21", "lat": 39.002155, "lon": -122.668123, "elev": 1339.0}, {"id": "TP23", "lat": 39.001558, "lon": -122.67006, "elev": 1334.5}, {"id": "TP24", "lat": 39.001492, "lon": -122.669742, "elev": 1348.5}, {"id": "TP27", "lat": 39.000365, "lon": -122.670131, "elev": 1328.5}, {"id": "TP28", "lat": 39.000529, "lon": -122.669218, "elev": 1339.0}, {"id": "TP29", "lat": 39.000202, "lon": -122.668928, "elev": 1336.5}, {"id": "TP31", "lat": 38.999622, "lon": -122.668626, "elev": 1361.0}, {"id": "TP33", "lat": 39.000878, "lon": -122.667801, "elev": 1353.5}, {"id": "TP34", "lat": 39.000928, "lon": -122.667373, "elev": 1353.5}, {"id": "TP35", "lat": 39.00126, "lon": -122.667191, "elev": 1351.0}, {"id": "TP36", "lat": 39.001375, "lon": -122.666868, "elev": 1350.0}, {"id": "TP37", "lat": 39.0059, "lon": -122.669628, "elev": 1385.5}, {"id": "TP38", "lat": 39.005561, "lon": -122.668993, "elev": 1391.0}, {"id": "TP39", "lat": 39.00517, "lon": -122.669467, "elev": 1375.0}, {"id": "TP40", "lat": 39.005216, "lon": -122.671035, "elev": 1341.0}, {"id": "TP41", "lat": 39.004626, "lon": -122.669224, "elev": 1387.0}, {"id": "TP46", "lat": 39.005451, "lon": -122.664915, "elev": 1413.0}, {"id": "TP47", "lat": 39.00433, "lon": -122.665958, "elev": 1374.0}, {"id": "TP49", "lat": 39.004956, "lon": -122.663994, "elev": 1378.5}, {"id": "TP50", "lat": 39.004134, "lon": -122.663959, "elev": 1354.5}, {"id": "TP51", "lat": 39.005901, "lon": -122.663883, "elev": 1399.0}, {"id": "TP52", "lat": 39.003978, "lon": -122.661577, "elev": 1359.0}, {"id": "TP53", "lat": 39.003808, "lon": -122.667917, "elev": 1349.5}, {"id": "TP57", "lat": 39.001745, "lon": -122.66947, "elev": 1379.0}, {"id": "TP58", "lat": 39.001906, "lon": -122.668382, "elev": 1366.0}, {"id": "TP59", "lat": 39.001556, "lon": -122.668452, "elev": 1368.5}, {"id": "TP60", "lat": 38.999595, "lon": -122.668238, "elev": 1387.0}, {"id": "TP61", "lat": 38.999181, "lon": -122.667914, "elev": 1409.0}, {"id": "TP62", "lat": 38.999049, "lon": -122.667264, "elev": 1456.0}, {"id": "TP65", "lat": 38.999677, "lon": -122.66689, "elev": 1483.0}, {"id": "TP66", "lat": 39.000063, "lon": -122.667148, "elev": 1465.5}, {"id": "TP68", "lat": 39.000355, "lon": -122.667131, "elev": 1442.5}, {"id": "TP71", "lat": 38.999067, "lon": -122.671422, "elev": 1336.0}, {"id": "TP72", "lat": 38.99901, "lon": -122.670237, "elev": 1359.0}, {"id": "TP70", "lat": 39.000548, "lon": -122.661971, "elev": 1416.0}, {"id": "TP74", "lat": 39.001075, "lon": -122.665206, "elev": 1377.5}, {"id": "TP75", "lat": 39.001531, "lon": -122.664463, "elev": 1370.5}, {"id": "TP76", "lat": 39.004544, "lon": -122.66963, "elev": 1391.0}, {"id": "TP77", "lat": 38.999976, "lon": -122.670771, "elev": 1331.0}, {"id": "TP78", "lat": 39.001036, "lon": -122.66977, "elev": 1343.0}, {"id": "TP79", "lat": 39.001175, "lon": -122.668016, "elev": 1346.0}, {"id": "TP80", "lat": 39.001529, "lon": -122.670099, "elev": 1333.0}];
+        
+        // Jacobs 2025 Soil Borings (44 locations)
+        var soilBorings2025 = [{"id": "SB-1", "lat": 39.000029, "lon": -122.667422, "elev": 1450.0}, {"id": "SB-2", "lat": 38.999538, "lon": -122.666822, "elev": 1482.0}, {"id": "SB-3", "lat": 39.000552, "lon": -122.666619, "elev": 1427.0}, {"id": "SB-4", "lat": 39.000385, "lon": -122.666241, "elev": 1427.0}, {"id": "SB-5", "lat": 39.000015, "lon": -122.663672, "elev": 1457.0}, {"id": "SB-6A", "lat": 39.001953, "lon": -122.66079, "elev": 1399.0}, {"id": "SB-7", "lat": 39.00119, "lon": -122.663774, "elev": 1405.0}, {"id": "SB-8", "lat": 39.001546, "lon": -122.665112, "elev": 1363.5}, {"id": "SB-9", "lat": 39.001937, "lon": -122.664212, "elev": 1366.5}, {"id": "SB-10", "lat": 39.0017, "lon": -122.662609, "elev": 1418.5}, {"id": "SB-11", "lat": 39.002132, "lon": -122.661293, "elev": 1427.5}, {"id": "SB-12", "lat": 39.00262, "lon": -122.662324, "elev": 1387.0}, {"id": "SB-13", "lat": 39.002997, "lon": -122.661474, "elev": 1392.0}, {"id": "SB-14", "lat": 39.003279, "lon": -122.660811, "elev": 1404.0}, {"id": "SB-15", "lat": 39.004268, "lon": -122.66027, "elev": 1408.0}, {"id": "SB-16", "lat": 39.004618, "lon": -122.658943, "elev": 1415.0}, {"id": "SB-17", "lat": 39.005088, "lon": -122.661017, "elev": 1403.0}, {"id": "SB-18", "lat": 39.006308, "lon": -122.661431, "elev": 1431.0}, {"id": "SB-19", "lat": 39.007072, "lon": -122.661521, "elev": 1442.0}, {"id": "SB-20", "lat": 39.007119, "lon": -122.659633, "elev": 1372.0}, {"id": "SB-21", "lat": 39.006712, "lon": -122.663359, "elev": 1405.0}, {"id": "SB-22", "lat": 39.006574, "lon": -122.664861, "elev": 1380.0}, {"id": "SB-23", "lat": 39.005753, "lon": -122.663986, "elev": 1400.0}, {"id": "SB-24", "lat": 39.004665, "lon": -122.666126, "elev": 1389.5}, {"id": "SB-25", "lat": 39.005533, "lon": -122.666923, "elev": 1393.0}, {"id": "SB-26", "lat": 39.007031, "lon": -122.66635, "elev": 1368.5}, {"id": "SB-28", "lat": 39.007693, "lon": -122.660546, "elev": 1356.0}, {"id": "SB-29", "lat": 39.007754, "lon": -122.663653, "elev": 1350.5}, {"id": "SB-31", "lat": 39.006464, "lon": -122.667587, "elev": 1379.0}, {"id": "SB-32", "lat": 39.003506, "lon": -122.67026, "elev": 1375.0}, {"id": "SB-33", "lat": 39.005774, "lon": -122.668501, "elev": 1397.0}, {"id": "SB-34", "lat": 39.004495, "lon": -122.670854, "elev": 1342.5}, {"id": "SB-35", "lat": 39.001484, "lon": -122.669622, "elev": 1347.0}, {"id": "SB-36", "lat": 39.002704, "lon": -122.669911, "elev": 1357.0}, {"id": "SB-37", "lat": 39.002837, "lon": -122.669273, "elev": 1355.0}, {"id": "SB-38", "lat": 39.003179, "lon": -122.668733, "elev": 1347.5}, {"id": "SB-39", "lat": 39.002646, "lon": -122.668733, "elev": 1351.0}, {"id": "SB-40", "lat": 39.002786, "lon": -122.669122, "elev": 1354.5}, {"id": "SB-41", "lat": 39.002754, "lon": -122.668159, "elev": 1344.0}, {"id": "SB-42", "lat": 39.002811, "lon": -122.667851, "elev": 1340.0}, {"id": "SB-43", "lat": 39.001791, "lon": -122.668407, "elev": 1362.0}, {"id": "SB-44", "lat": 39.001857, "lon": -122.669506, "elev": 1376.5}, {"id": "SB-45", "lat": 39.002683, "lon": -122.668867, "elev": 1352.0}, {"id": "SB-46", "lat": 39.002604, "lon": -122.668651, "elev": 1351.0}];
+        
         var map;
         var layers = {
             sampled2025: null,
             notSampled2025: null,
             eaSamples: null,
             eaTestPits: null,
-            planned: null
+            planned: null,
+            testPits2025: null,
+            soilBorings2025: null
         };
         var markers2025 = {};
         var markersEA = {};
@@ -416,6 +431,8 @@
             layers.eaSamples = L.layerGroup().addTo(map);
             layers.eaTestPits = L.layerGroup().addTo(map);
             layers.planned = L.layerGroup().addTo(map);
+            layers.testPits2025 = L.layerGroup();  // Not added by default
+            layers.soilBorings2025 = L.layerGroup();  // Not added by default
 
             // Add 2025 samples (circles)
             samples2025.forEach(function(s) {
@@ -509,6 +526,45 @@
                 });
                 marker.bindPopup('<b>EA Test Pit: ' + tp.id + '</b><br>pH: ' + tp.ph + '<br>' + tp.notes);
                 marker.addTo(layers.eaTestPits);
+            });
+
+            // Add Jacobs 2025 Test Pits (X markers in orange)
+            testPits2025.forEach(function(tp) {
+                var marker = L.marker([tp.lat, tp.lon], {
+                    icon: L.divIcon({
+                        className: 'tp2025-icon',
+                        html: '<div style="color: #cc6600; font-size: 16px; font-weight: bold; text-shadow: 1px 1px 1px #000, -1px -1px 1px #000;">✕</div>',
+                        iconSize: [16, 16], iconAnchor: [8, 8]
+                    })
+                });
+                var elevText = tp.elev ? tp.elev.toFixed(1) + ' ft' : 'N/A';
+                marker.bindPopup(
+                    '<div style="font-family: Arial;">' +
+                    '<h4 style="margin: 0 0 6px 0; color: #cc6600;">2025 Test Pit: ' + tp.id + '</h4>' +
+                    '<b>Elevation:</b> ' + elevText + '<br>' +
+                    '<small>' + tp.lat.toFixed(6) + ', ' + tp.lon.toFixed(6) + '</small>' +
+                    '</div>'
+                );
+                marker.bindTooltip('TP: ' + tp.id, {direction: 'top', offset: [0, -8]});
+                marker.addTo(layers.testPits2025);
+            });
+
+            // Add Jacobs 2025 Soil Borings (blue circles with white center)
+            soilBorings2025.forEach(function(sb) {
+                var marker = L.circleMarker([sb.lat, sb.lon], {
+                    radius: 7, fillColor: '#0099cc', color: '#006699',
+                    weight: 2, opacity: 1, fillOpacity: 0.8
+                });
+                var elevText = sb.elev ? sb.elev.toFixed(1) + ' ft' : 'N/A';
+                marker.bindPopup(
+                    '<div style="font-family: Arial;">' +
+                    '<h4 style="margin: 0 0 6px 0; color: #0099cc;">2025 Soil Boring: ' + sb.id + '</h4>' +
+                    '<b>Elevation:</b> ' + elevText + '<br>' +
+                    '<small>' + sb.lat.toFixed(6) + ', ' + sb.lon.toFixed(6) + '</small>' +
+                    '</div>'
+                );
+                marker.bindTooltip('SB: ' + sb.id, {direction: 'top', offset: [0, -8]});
+                marker.addTo(layers.soilBorings2025);
             });
 
             // Map events
@@ -667,6 +723,12 @@
             });
             document.getElementById('togglePlanned').addEventListener('change', function() {
                 this.checked ? map.addLayer(layers.planned) : map.removeLayer(layers.planned);
+            });
+            document.getElementById('toggleTestPits2025').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.testPits2025) : map.removeLayer(layers.testPits2025);
+            });
+            document.getElementById('toggleSoilBorings2025').addEventListener('change', function() {
+                this.checked ? map.addLayer(layers.soilBorings2025) : map.removeLayer(layers.soilBorings2025);
             });
 
             L.control.scale({imperial: true, metric: true}).addTo(map);
@@ -1240,7 +1302,21 @@
         
         function updateHotZoneLegend() {
             var abbrev = {Mercury: 'Hg', Arsenic: 'As', Antimony: 'Sb', Thallium: 'Tl'};
+            var thresh = thresholds[currentAnalyte];
             document.getElementById('hotzoneAnalyte').textContent = abbrev[currentAnalyte];
+            
+            // Update legend values based on current analyte thresholds
+            var legendItems = document.getElementById('hotzoneLegend').querySelectorAll('.gap-legend-item');
+            if (thresh.high === thresh.low) {
+                // No yellow zone (like As, Tl)
+                legendItems[0].innerHTML = '<span class="gap-box" style="background:rgba(255,0,0,0.5)"></span>Exceeds ROD (>' + thresh.high + ')';
+                legendItems[1].innerHTML = '<span class="gap-box" style="background:rgba(255,165,0,0.4)"></span>N/A';
+                legendItems[2].innerHTML = '<span class="gap-box" style="background:rgba(0,200,0,0.25)"></span>Below ROD (≤' + thresh.low + ')';
+            } else {
+                legendItems[0].innerHTML = '<span class="gap-box" style="background:rgba(255,0,0,0.5)"></span>Exceeds ROD (>' + thresh.high + ')';
+                legendItems[1].innerHTML = '<span class="gap-box" style="background:rgba(255,165,0,0.4)"></span>Above PMB (' + thresh.low + '-' + thresh.high + ')';
+                legendItems[2].innerHTML = '<span class="gap-box" style="background:rgba(0,200,0,0.25)"></span>Below PMB (≤' + thresh.low + ')';
+            }
         }
         
         function getSampleValue(sample, analyte, isEA) {
