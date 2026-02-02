@@ -2,6 +2,8 @@
  * SBMM Planning Tool - Point Planning
  *
  * Handles adding, editing, deleting, and displaying planned sampling points.
+ * Supports coordinate entry, drag repositioning, undo/redo integration,
+ * and auto-save to LocalStorage.
  */
 var PlanningModule = (function() {
     'use strict';
@@ -103,6 +105,12 @@ var PlanningModule = (function() {
         AppState.map.closePopup();
         AppState.pendingPoint = null;
 
+        // Push to undo stack
+        AppState.pushUndo({ type: 'add_point', data: point });
+
+        // Auto-save
+        if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
+
         // Refresh gap grid if visible
         if (AppState.gapsVisible) AnalysisModule.createGapGrid();
     }
@@ -113,6 +121,72 @@ var PlanningModule = (function() {
     function cancelAddPoint() {
         AppState.map.closePopup();
         AppState.pendingPoint = null;
+    }
+
+    /**
+     * Add a planned point from coordinate entry (manual lat/lon input).
+     */
+    function addFromCoordinates() {
+        var latInput = document.getElementById('coordEntryLat');
+        var lonInput = document.getElementById('coordEntryLon');
+        if (!latInput || !lonInput) return;
+
+        var lat = parseFloat(latInput.value);
+        var lon = parseFloat(lonInput.value);
+
+        if (isNaN(lat) || isNaN(lon)) {
+            alert('Enter valid latitude and longitude values.');
+            return;
+        }
+
+        // Validate range
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+            alert('Coordinates out of range.\nLatitude: -90 to 90\nLongitude: -180 to 180');
+            return;
+        }
+
+        var mode = AppState.currentMode;
+        if (mode === 'view') mode = 'proposed'; // Default to proposed
+
+        var typeConfig = AppConfig.pointTypes[mode];
+        var pointNum = getNextPointNumber(mode);
+        var pointId = typeConfig.prefix + pointNum;
+
+        var depthSelect = document.getElementById('coordEntryDepth');
+        var noteInput = document.getElementById('coordEntryNote');
+        var depth = depthSelect ? depthSelect.value : 'Shallow';
+        var note = noteInput ? noteInput.value : '';
+
+        var point = {
+            id: pointId,
+            type: mode,
+            lat: lat,
+            lon: lon,
+            note: note,
+            depth: depth,
+            color: typeConfig.color
+        };
+
+        AppState.plannedPoints.push(point);
+        addPlannedMarker(point);
+        updatePlannedPointsList();
+
+        // Push to undo stack
+        AppState.pushUndo({ type: 'add_point', data: point });
+
+        // Auto-save
+        if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
+
+        // Pan map to point
+        AppState.map.setView([lat, lon], 18);
+
+        // Clear inputs
+        latInput.value = '';
+        lonInput.value = '';
+        if (noteInput) noteInput.value = '';
+
+        // Refresh gap grid if visible
+        if (AppState.gapsVisible) AnalysisModule.createGapGrid();
     }
 
     /**
@@ -157,11 +231,36 @@ var PlanningModule = (function() {
         marker.pointId = point.id;
         marker.pointRef = point;
 
+        marker.on('dragstart', function() {
+            // Store old position for undo
+            marker._oldLat = point.lat;
+            marker._oldLon = point.lon;
+        });
+
         marker.on('dragend', function(e) {
             var newLatLng = e.target.getLatLng();
+            var oldLat = marker._oldLat;
+            var oldLon = marker._oldLon;
+
             point.lat = newLatLng.lat;
             point.lon = newLatLng.lng;
             updatePlannedPointsList();
+
+            // Push move action to undo stack
+            AppState.pushUndo({
+                type: 'move_point',
+                data: {
+                    id: point.id,
+                    oldLat: oldLat,
+                    oldLon: oldLon,
+                    newLat: newLatLng.lat,
+                    newLon: newLatLng.lng
+                }
+            });
+
+            // Auto-save
+            if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
+
             if (AppState.gapsVisible) AnalysisModule.createGapGrid();
         });
 
@@ -179,9 +278,26 @@ var PlanningModule = (function() {
 
         var point = AppState.plannedPoints.find(function(p) { return p.id === pointId; });
         if (point) {
+            var oldNote = point.note;
+            var oldDepth = point.depth;
             point.note = noteInput.value;
             point.depth = depthSelect ? depthSelect.value : 'Shallow';
             updatePlannedPointsList();
+
+            // Push edit action to undo stack
+            AppState.pushUndo({
+                type: 'edit_point',
+                data: {
+                    id: point.id,
+                    oldNote: oldNote,
+                    oldDepth: oldDepth,
+                    newNote: point.note,
+                    newDepth: point.depth
+                }
+            });
+
+            // Auto-save
+            if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
         }
         AppState.map.closePopup();
     }
@@ -193,7 +309,14 @@ var PlanningModule = (function() {
     function deletePointById(pointId) {
         var idx = AppState.plannedPoints.findIndex(function(p) { return p.id === pointId; });
         if (idx !== -1) {
+            var deletedPoint = JSON.parse(JSON.stringify(AppState.plannedPoints[idx]));
             deletePoint(idx);
+
+            // Push delete action to undo stack
+            AppState.pushUndo({ type: 'delete_point', data: deletedPoint });
+
+            // Auto-save
+            if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
         }
         AppState.map.closePopup();
     }
@@ -213,22 +336,27 @@ var PlanningModule = (function() {
     }
 
     /**
-     * Undo the last added planned point.
+     * Undo the last added planned point (legacy - replaced by AppState.undo).
      */
     function undoLast() {
-        if (AppState.plannedPoints.length > 0) {
-            deletePoint(AppState.plannedPoints.length - 1);
-        }
+        AppState.undo();
     }
 
     /**
      * Clear all planned points (with confirmation).
      */
     function clearAllPlanned() {
-        if (AppState.plannedPoints.length === 0 || !confirm('Clear all points?')) return;
+        if (AppState.plannedPoints.length === 0 || !confirm('Clear all planned points? This cannot be undone.')) return;
         AppState.layers.planned.clearLayers();
         AppState.plannedPoints = [];
+        AppState.undoStack = [];
+        AppState.redoStack = [];
+        AppState.updateUndoRedoButtons();
         updatePlannedPointsList();
+
+        // Auto-save
+        if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
+
         if (AppState.gapsVisible) AnalysisModule.createGapGrid();
     }
 
@@ -267,7 +395,14 @@ var PlanningModule = (function() {
         listDiv.querySelectorAll('.delete-btn').forEach(function(btn) {
             btn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                deletePoint(parseInt(this.getAttribute('data-idx')));
+                var idx = parseInt(this.getAttribute('data-idx'));
+                var point = AppState.plannedPoints[idx];
+                if (point) {
+                    var deletedPoint = JSON.parse(JSON.stringify(point));
+                    deletePoint(idx);
+                    AppState.pushUndo({ type: 'delete_point', data: deletedPoint });
+                    if (typeof StorageModule !== 'undefined') StorageModule.savePlannedPoints();
+                }
             });
         });
     }
@@ -291,6 +426,7 @@ var PlanningModule = (function() {
         showAddPointPopup: showAddPointPopup,
         confirmAddPoint: confirmAddPoint,
         cancelAddPoint: cancelAddPoint,
+        addFromCoordinates: addFromCoordinates,
         addPlannedMarker: addPlannedMarker,
         savePointNote: savePointNote,
         deletePointById: deletePointById,

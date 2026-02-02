@@ -8,20 +8,87 @@
     <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
+    <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">&#9776;</button>
+
     <div id="container">
         <div id="map">
             <div class="map-watermark">Mo Sharif - Jacobs 2026</div>
         </div>
         <div id="sidebar">
             <div class="header">
-                <h2>SBMM ABP Soil Sampling - Combined Analysis</h2>
-                <p>2025 Jacobs Data + EA Historical Data | ROD ON-MINE CLEANUP LEVELS</p>
+                <div class="header-left">
+                    <h2>SBMM ABP Soil Sampling - Combined Analysis</h2>
+                    <p>2025 Jacobs Data + EA Historical Data | ROD ON-MINE CLEANUP LEVELS</p>
+                </div>
+                <div class="header-controls">
+                    <button class="dark-toggle" id="btn-darkmode" title="Toggle dark mode">Dark</button>
+                    <button class="print-btn" id="btn-print" title="Generate report">Report</button>
+                </div>
             </div>
 
             <div class="cleanup-levels">
                 <div class="title">ROD ON-MINE CLEANUP LEVELS (mg/kg) - 2023 ROD Table 2-3</div>
                 Hg: 204 | As: 6.1 | Sb: 51 | Tl: 1.3
             </div>
+
+            <!-- Search Bar -->
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Search samples by ID...">
+                <button class="search-clear-btn" id="searchClear" title="Clear search">&times;</button>
+                <span class="search-match-count" id="searchMatchCount"></span>
+                <button class="filter-toggle-btn" id="filterToggle">Filters</button>
+            </div>
+
+            <!-- Filter Panel -->
+            <div class="filter-panel" id="filterPanel">
+                <div class="filter-row">
+                    <label>Source:</label>
+                    <select id="filterSource">
+                        <option value="all">All</option>
+                        <option value="2025">2025 Jacobs</option>
+                        <option value="ea">EA Historical</option>
+                    </select>
+                    <label>Exceed:</label>
+                    <select id="filterExceedance">
+                        <option value="all">All</option>
+                        <option value="exceeds">Exceeds ROD</option>
+                        <option value="below">Below ROD</option>
+                    </select>
+                </div>
+                <div class="filter-row">
+                    <label>Analyte:</label>
+                    <select id="filterAnalyte">
+                        <option value="any">Any</option>
+                        <option value="Mercury">Mercury</option>
+                        <option value="Arsenic">Arsenic</option>
+                        <option value="Antimony">Antimony</option>
+                        <option value="Thallium">Thallium</option>
+                    </select>
+                    <label>Min:</label>
+                    <input type="number" id="filterMinValue" placeholder="Min" step="any">
+                    <label>Max:</label>
+                    <input type="number" id="filterMaxValue" placeholder="Max" step="any">
+                </div>
+                <button class="filter-reset-btn" id="filterReset">Reset Filters</button>
+            </div>
+
+            <!-- Timeline Bar -->
+            <div class="timeline-bar">
+                <span class="timeline-label">Period:</span>
+                <button class="timeline-btn" data-period="ea">EA</button>
+                <button class="timeline-btn" data-period="jacobs2025">2025</button>
+                <button class="timeline-btn active" data-period="all">All</button>
+                <span class="timeline-desc" id="timelineDesc">All data combined</span>
+                <span class="timeline-count" id="timelineSampleCount"></span>
+            </div>
+
+            <!-- Compare Bar -->
+            <div class="compare-bar" id="compareBar">
+                <span class="compare-label">COMPARE</span>
+                <span class="compare-status" id="compareStatus">Click 2 samples to compare</span>
+                <button class="compare-close" id="compareClose">&times;</button>
+            </div>
+            <div id="comparePanel"></div>
 
             <div class="planning-tool">
                 <h3>SAMPLE PLANNING</h3>
@@ -34,8 +101,22 @@
                     <div class="label">CURSOR POSITION</div>
                     <div class="coords" id="cursorCoords">Lat: ---, Lon: ---</div>
                 </div>
+                <div class="coord-entry">
+                    <label>Lat:</label>
+                    <input type="number" id="coordEntryLat" placeholder="38.9..." step="any">
+                    <label>Lon:</label>
+                    <input type="number" id="coordEntryLon" placeholder="-122.6..." step="any">
+                    <select id="coordEntryDepth">
+                        <option value="Shallow">S</option>
+                        <option value="Deep">D</option>
+                        <option value="Both">B</option>
+                    </select>
+                    <input type="text" id="coordEntryNote" placeholder="Note">
+                    <button class="coord-entry-btn" id="btn-addcoord">Add</button>
+                </div>
                 <div class="planning-actions">
-                    <button class="action-btn" id="btn-undo">Undo</button>
+                    <button class="action-btn" id="btn-undo" disabled title="Nothing to undo">Undo</button>
+                    <button class="action-btn" id="btn-redo" disabled title="Nothing to redo">Redo</button>
                     <button class="action-btn danger" id="btn-clear">Clear</button>
                     <button class="action-btn success" id="btn-export">CSV</button>
                     <button class="action-btn" id="btn-copy">Copy</button>
@@ -44,6 +125,7 @@
                         <input type="file" id="csv-upload" accept=".csv" style="display:none;">
                     </label>
                 </div>
+                <div class="storage-status" id="storageStatus"></div>
             </div>
 
             <div class="planned-points">
@@ -70,11 +152,26 @@
                     <button class="tool-btn" id="btn-hotzone">Hot Zones</button>
                 </div>
                 <div class="tool-row">
+                    <button class="tool-btn" id="btn-contour">Contour</button>
+                    <button class="tool-btn" id="btn-crosssection">X-Section</button>
+                    <button class="tool-btn" id="btn-polygon">Polygon</button>
+                    <button class="tool-btn" id="btn-buffer">Buffer</button>
+                </div>
+                <div class="tool-row">
+                    <button class="tool-btn" id="btn-compare">Compare</button>
+                </div>
+                <div class="tool-row">
                     <label>Grid size:</label>
                     <button class="grid-btn" id="btn-grid-down">&minus;</button>
                     <span class="grid-size" id="gridSizeDisplay">50 ft</span>
                     <button class="grid-btn" id="btn-grid-up">+</button>
                     <button class="tool-btn active" id="btn-include-planned" style="margin-left:8px; flex:none; padding:5px 8px;" title="Include planned points in gap analysis">On</button>
+                </div>
+                <div class="tool-row" id="bufferRadiusRow" style="display:none;">
+                    <label>Buffer:</label>
+                    <button class="grid-btn" id="btn-buffer-down">&minus;</button>
+                    <span class="grid-size" id="bufferRadiusDisplay">50 ft</span>
+                    <button class="grid-btn" id="btn-buffer-up">+</button>
                 </div>
                 <div class="measure-result" id="measureResult">
                     Distance: <span id="distanceValue">&mdash;</span> ft (<span id="distanceMeters">&mdash;</span> m)
@@ -93,6 +190,12 @@
                         <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,0,0,0.5)"></span>Exceeds ROD (&gt;204)</div>
                         <div class="gap-legend-item"><span class="gap-box" style="background:rgba(255,165,0,0.4)"></span>Above PMB (35-204)</div>
                         <div class="gap-legend-item"><span class="gap-box" style="background:rgba(0,200,0,0.25)"></span>Below PMB (&le;35)</div>
+                    </div>
+                </div>
+                <div class="gap-legend" id="bufferLegend">
+                    <div class="gap-legend-title" style="color:#d63e2a;">BUFFER ZONES - Exceedance Areas</div>
+                    <div class="gap-legend-items">
+                        <div class="gap-legend-item"><span class="gap-box" style="background:rgba(214,62,42,0.12); border-color:#d63e2a;"></span>Buffer around ROD exceedance</div>
                     </div>
                 </div>
             </div>
@@ -175,11 +278,19 @@
     <script src="js/config.js"></script>
     <script src="js/state.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/storage.js"></script>
     <script src="js/map.js"></script>
     <script src="js/markers.js"></script>
     <script src="js/planning.js"></script>
     <script src="js/analysis.js"></script>
     <script src="js/export.js"></script>
+    <script src="js/search.js"></script>
+    <script src="js/compare.js"></script>
+    <script src="js/timeline.js"></script>
+    <script src="js/print.js"></script>
+    <script src="js/contour.js"></script>
+    <script src="js/crosssection.js"></script>
+    <script src="js/polygon.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

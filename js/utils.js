@@ -131,12 +131,91 @@ var Utils = (function() {
             });
     }
 
+    // ===== DATA VALIDATION =====
+
+    /**
+     * Validate a samples-2025 array entry.
+     * @param {Object} s
+     * @param {number} index
+     * @returns {Object} { valid: boolean, errors: string[] }
+     */
+    function validateSample2025(s, index) {
+        var errors = [];
+        if (typeof s.lat !== 'number' || isNaN(s.lat)) errors.push('Item ' + index + ': missing or invalid lat');
+        if (typeof s.lon !== 'number' || isNaN(s.lon)) errors.push('Item ' + index + ': missing or invalid lon');
+        if (!s.label) errors.push('Item ' + index + ': missing label');
+        if (typeof s.sampled !== 'boolean') errors.push('Item ' + index + ': missing sampled flag');
+        return { valid: errors.length === 0, errors: errors };
+    }
+
+    /**
+     * Validate an ea-samples array entry.
+     */
+    function validateEASample(e, index) {
+        var errors = [];
+        if (typeof e.lat !== 'number' || isNaN(e.lat)) errors.push('Item ' + index + ': missing or invalid lat');
+        if (typeof e.lon !== 'number' || isNaN(e.lon)) errors.push('Item ' + index + ': missing or invalid lon');
+        if (!e.id) errors.push('Item ' + index + ': missing id');
+        return { valid: errors.length === 0, errors: errors };
+    }
+
+    /**
+     * Validate an entire dataset and log warnings for bad entries.
+     * Returns the filtered valid entries.
+     * @param {Array} data
+     * @param {string} datasetName
+     * @param {Function} validator
+     * @returns {Array}
+     */
+    function validateDataset(data, datasetName, validator) {
+        if (!Array.isArray(data)) {
+            console.error('Data validation: ' + datasetName + ' is not an array');
+            return [];
+        }
+
+        var valid = [];
+        var allErrors = [];
+
+        data.forEach(function(item, index) {
+            var result = validator(item, index);
+            if (result.valid) {
+                valid.push(item);
+            } else {
+                allErrors = allErrors.concat(result.errors);
+            }
+        });
+
+        if (allErrors.length > 0) {
+            console.warn('Data validation warnings for ' + datasetName + ' (' + allErrors.length + ' issues):');
+            allErrors.slice(0, 10).forEach(function(e) { console.warn('  ' + e); });
+            if (allErrors.length > 10) console.warn('  ... and ' + (allErrors.length - 10) + ' more');
+        }
+
+        console.log(datasetName + ': ' + valid.length + '/' + data.length + ' entries valid');
+        return valid;
+    }
+
+    /**
+     * Validate a generic location entry (test pits, soil borings).
+     */
+    function validateLocationEntry(item, index) {
+        var errors = [];
+        if (typeof item.lat !== 'number' || isNaN(item.lat)) errors.push('Item ' + index + ': missing or invalid lat');
+        if (typeof item.lon !== 'number' || isNaN(item.lon)) errors.push('Item ' + index + ': missing or invalid lon');
+        if (!item.id) errors.push('Item ' + index + ': missing id');
+        return { valid: errors.length === 0, errors: errors };
+    }
+
     return {
         fmt: fmt,
         formatVal: formatVal,
         createElement: createElement,
         parseCSVLine: parseCSVLine,
         getSampleValue: getSampleValue,
-        loadJSON: loadJSON
+        loadJSON: loadJSON,
+        validateSample2025: validateSample2025,
+        validateEASample: validateEASample,
+        validateDataset: validateDataset,
+        validateLocationEntry: validateLocationEntry
     };
 })();

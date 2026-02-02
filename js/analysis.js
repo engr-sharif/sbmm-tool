@@ -1,7 +1,8 @@
 /**
  * SBMM Planning Tool - Analysis Tools
  *
- * Data gap analysis, hot zone analysis, and distance measurement.
+ * Data gap analysis, hot zone analysis, distance measurement,
+ * and buffer zone visualization.
  */
 var AnalysisModule = (function() {
     'use strict';
@@ -88,10 +89,10 @@ var AnalysisModule = (function() {
         AppState.includePlannedInGaps = !AppState.includePlannedInGaps;
         var btn = document.getElementById('btn-include-planned');
         if (AppState.includePlannedInGaps) {
-            btn.textContent = '\ud83d\udccd On';
+            btn.textContent = 'On';
             btn.classList.add('active');
         } else {
-            btn.textContent = '\ud83d\udccd Off';
+            btn.textContent = 'Off';
             btn.classList.remove('active');
         }
         if (AppState.gapsVisible) createGapGrid();
@@ -125,7 +126,6 @@ var AnalysisModule = (function() {
 
         var data = AppState.data;
 
-        // Base samples for grid bounds (these never change)
         var baseSamples = [];
         data.samples2025.filter(function(s) { return s.sampled; }).forEach(function(s) {
             baseSamples.push({ lat: s.lat, lon: s.lon });
@@ -134,7 +134,6 @@ var AnalysisModule = (function() {
             baseSamples.push({ lat: e.lat, lon: e.lon });
         });
 
-        // Density samples (optionally include planned)
         var densitySamples = baseSamples.slice();
         if (AppState.includePlannedInGaps) {
             AppState.plannedPoints.forEach(function(p) {
@@ -142,7 +141,6 @@ var AnalysisModule = (function() {
             });
         }
 
-        // Grid bounds from base samples only (so grid doesn't shift)
         var lats = baseSamples.map(function(s) { return s.lat; });
         var lons = baseSamples.map(function(s) { return s.lon; });
         var minLat = Math.min.apply(null, lats) - 0.0005;
@@ -150,7 +148,6 @@ var AnalysisModule = (function() {
         var minLon = Math.min.apply(null, lons) - 0.0005;
         var maxLon = Math.max.apply(null, lons) + 0.0005;
 
-        // Grid size in degrees
         var sizeMeters = AppState.gridSizeFt * conv.feetToMeters;
         var gridSizeLat = sizeMeters / conv.metersPerDegLat;
         var gridSizeLon = sizeMeters / conv.metersPerDegLon;
@@ -233,7 +230,6 @@ var AnalysisModule = (function() {
         var data = AppState.data;
         var analyte = AppState.currentAnalyte;
 
-        // Collect all samples with values
         var allSamples = [];
         data.samples2025.filter(function(s) { return s.sampled; }).forEach(function(s) {
             var val = Utils.getSampleValue(s, analyte, false);
@@ -250,7 +246,6 @@ var AnalysisModule = (function() {
 
         if (allSamples.length === 0) return;
 
-        // Grid bounds
         var lats = allSamples.map(function(s) { return s.lat; });
         var lons = allSamples.map(function(s) { return s.lon; });
         var minLat = Math.min.apply(null, lats) - 0.0005;
@@ -299,6 +294,86 @@ var AnalysisModule = (function() {
         }
     }
 
+    // ===== BUFFER ZONE VISUALIZATION =====
+
+    function toggleBufferZones() {
+        AppState.bufferVisible = !AppState.bufferVisible;
+        var btn = document.getElementById('btn-buffer');
+        var legend = document.getElementById('bufferLegend');
+
+        if (AppState.bufferVisible) {
+            if (btn) btn.classList.add('active-buffer');
+            if (legend) legend.classList.add('visible');
+            createBufferZones();
+        } else {
+            if (btn) btn.classList.remove('active-buffer');
+            if (legend) legend.classList.remove('visible');
+            removeBufferZones();
+        }
+    }
+
+    function adjustBufferRadius(delta) {
+        AppState.bufferRadiusFt = Math.max(25, Math.min(200, AppState.bufferRadiusFt + delta));
+        var display = document.getElementById('bufferRadiusDisplay');
+        if (display) display.textContent = AppState.bufferRadiusFt + ' ft';
+        if (AppState.bufferVisible) createBufferZones();
+    }
+
+    function createBufferZones() {
+        removeBufferZones();
+        AppState.bufferLayer = L.layerGroup().addTo(AppState.map);
+
+        var data = AppState.data;
+        var analyte = AppState.currentAnalyte;
+        var radiusMeters = AppState.bufferRadiusFt * conv.feetToMeters;
+
+        data.samples2025.forEach(function(s) {
+            if (!s.sampled) return;
+            var val = Utils.getSampleValue(s, analyte, false);
+            if (val === null || val === undefined) return;
+            if (!AppConfig.exceedsROD(val, analyte)) return;
+
+            L.circle([s.lat, s.lon], {
+                radius: radiusMeters,
+                color: '#d63e2a',
+                weight: 2,
+                dashArray: '6, 4',
+                fillColor: '#d63e2a',
+                fillOpacity: 0.12,
+                interactive: false
+            }).addTo(AppState.bufferLayer);
+        });
+
+        data.eaSamples.forEach(function(e) {
+            var val = Utils.getSampleValue(e, analyte, true);
+            if (val === null || val === undefined) return;
+            if (!AppConfig.exceedsROD(val, analyte)) return;
+
+            L.circle([e.lat, e.lon], {
+                radius: radiusMeters,
+                color: '#d63e2a',
+                weight: 2,
+                dashArray: '6, 4',
+                fillColor: '#d63e2a',
+                fillOpacity: 0.12,
+                interactive: false
+            }).addTo(AppState.bufferLayer);
+        });
+    }
+
+    function removeBufferZones() {
+        if (AppState.bufferLayer) {
+            AppState.map.removeLayer(AppState.bufferLayer);
+            AppState.bufferLayer = null;
+        }
+    }
+
+    function refreshBufferZones() {
+        if (AppState.bufferVisible) {
+            createBufferZones();
+        }
+    }
+
     // Public API
     return {
         toggleMeasureMode: toggleMeasureMode,
@@ -309,6 +384,9 @@ var AnalysisModule = (function() {
         createGapGrid: createGapGrid,
         toggleHotZones: toggleHotZones,
         updateHotZoneLegend: updateHotZoneLegend,
-        createHotZoneGrid: createHotZoneGrid
+        createHotZoneGrid: createHotZoneGrid,
+        toggleBufferZones: toggleBufferZones,
+        adjustBufferRadius: adjustBufferRadius,
+        refreshBufferZones: refreshBufferZones
     };
 })();
